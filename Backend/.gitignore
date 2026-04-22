@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+logs/
+*.log
+coverage/
+.DS_Store
+.idea/
+.vscode/
+*.iml
+npm-debug.log
+yarn-error.log
+# Optional: Ignore build artifacts
+build/

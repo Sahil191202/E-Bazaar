@@ -1,0 +1,415 @@
+import { User }                from '../models/User.js';
+import { FirebaseService }     from '../services/firebase.service.js';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+}                              from '../utils/generateToken.js';
+import { ApiResponse }         from '../utils/ApiResponse.js';
+import { ApiError }            from '../utils/ApiError.js';
+import { asyncHandler }        from '../utils/asyncHandler.js';
+import { getCache, setCache, delCache } from '../config/redis.js';
+
+// ─── Cookie config ────────────────────────────────────────────────────────────
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure:   process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days
+};
+
+// ─── Shared helper: issue JWT pair and persist refresh token ─────────────────
+const issueTokensAndSave = async (user, userAgent) => {
+  const accessToken  = generateAccessToken({ id: user._id, role: user.role });
+  const refreshToken = generateRefreshToken({ id: user._id });
+
+  // Keep max 5 active sessions per user (sliding window)
+  if (user.refreshTokens.length >= 5) {
+    user.refreshTokens.shift(); // remove oldest
+  }
+  user.refreshTokens.push({
+    token:     refreshToken,
+    device:    userAgent || 'unknown',
+    createdAt: new Date(),
+  });
+  user.lastLogin = new Date();
+  await user.save();
+
+  return { accessToken, refreshToken };
+};
+
+// ─── Shared helper: find or create user from Firebase payload ────────────────
+const findOrCreateUser = async (firebasePayload, extraData = {}) => {
+  const { uid, phone, email, name, picture, provider,
+          isPhoneVerified, isEmailVerified } = firebasePayload;
+
+  // 1. Try to find by Firebase UID first (fastest path)
+  let user = await User.findOne({ firebaseUid: uid });
+  if (user) return { user, isNew: false };
+
+  // 2. Try to find by phone (phone auth) or email (OAuth)
+  if (phone) user = await User.findOne({ phone });
+  if (!user && email) user = await User.findOne({ email });
+
+  if (user) {
+    // Link Firebase UID to existing account
+    user.firebaseUid = uid;
+    if (!user.authProviders.some((p) => p.provider === provider)) {
+      user.authProviders.push({ provider, providerId: uid });
+    }
+    if (phone  && !user.phone)  user.phone  = phone;
+    if (email  && !user.email)  user.email  = email;
+    if (picture && !user.avatar) user.avatar = picture;
+    if (isPhoneVerified) user.isPhoneVerified = true;
+    if (isEmailVerified) user.isEmailVerified = true;
+    await user.save();
+    return { user, isNew: false };
+  }
+
+  // 3. Create brand new user
+  const displayName = extraData.name || name || 'User';
+
+  user = await User.create({
+    name:            displayName,
+    phone:           phone  || undefined,
+    email:           email  || undefined,
+    avatar:          picture || '',
+    firebaseUid:     uid,
+    isPhoneVerified,
+    isEmailVerified,
+    authProviders:   [{ provider, providerId: uid }],
+  });
+
+  return { user, isNew: true };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PHONE AUTH (Firebase OTP — client verifies OTP, sends us the ID token)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/auth/phone/verify
+ *
+ * Flow:
+ *  1. Client uses Firebase SDK to send OTP to phone
+ *  2. User enters OTP → Firebase SDK returns an ID token
+ *  3. Client sends that ID token here
+ *  4. We verify it with Firebase Admin SDK → issue our own JWTs
+ */
+export const verifyPhoneAuth = asyncHandler(async (req, res) => {
+  const { firebaseIdToken, name } = req.body;
+
+  // 1. Verify with Firebase Admin
+  const firebasePayload = await FirebaseService.verifyAndExtract(firebaseIdToken);
+
+  if (firebasePayload.provider !== 'phone') {
+    throw new ApiError(400, 'This endpoint is for phone authentication only');
+  }
+
+  if (!firebasePayload.phone) {
+    throw new ApiError(400, 'Phone number not found in Firebase token');
+  }
+
+  // 2. Find or create user
+  const { user, isNew } = await findOrCreateUser(firebasePayload, { name });
+
+  if (isNew && !name) {
+    // New phone users must provide a name — return a flag so client
+    // can show a "complete your profile" screen
+    return res.status(200).json(new ApiResponse(200, {
+      requiresProfile: true,
+      phone: firebasePayload.phone,
+      firebaseUid: firebasePayload.uid,
+    }, 'Phone verified. Please complete your profile.'));
+  }
+
+  // 3. Issue JWTs
+  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+
+  res
+    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+    .json(new ApiResponse(200, {
+      user:     user.toSafeObject(),
+      accessToken,
+      isNewUser: isNew,
+    }, isNew ? 'Account created successfully' : 'Login successful'));
+});
+
+/**
+ * POST /api/v1/auth/phone/complete-profile
+ *
+ * Called after phone verification when the user is new and needs to set their name.
+ */
+export const completePhoneProfile = asyncHandler(async (req, res) => {
+  const { firebaseIdToken, name } = req.body;
+
+  if (!name?.trim()) throw new ApiError(400, 'Name is required');
+
+  const firebasePayload = await FirebaseService.verifyAndExtract(firebaseIdToken);
+
+  // Re-verify the same token, then create/update
+  const { user, isNew } = await findOrCreateUser(firebasePayload, { name: name.trim() });
+
+  if (!isNew) {
+    // User already existed — just update name if blank
+    if (!user.name || user.name === 'User') {
+      user.name = name.trim();
+      await user.save();
+    }
+  }
+
+  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+
+  res
+    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+    .json(new ApiResponse(201, {
+      user: user.toSafeObject(),
+      accessToken,
+    }, 'Profile completed successfully'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GOOGLE OAUTH
+//  Option A: Client uses Firebase Google sign-in → sends Firebase ID token
+//  Option B: Client uses raw Google OAuth → sends Google ID token directly
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/auth/google/firebase
+ *
+ * Client signs in with Google via Firebase SDK, gets a Firebase ID token,
+ * sends it here. Works for both registration and login.
+ */
+export const googleFirebaseAuth = asyncHandler(async (req, res) => {
+  const { firebaseIdToken } = req.body;
+
+  const firebasePayload = await FirebaseService.verifyAndExtract(firebaseIdToken);
+
+  if (!['google.com'].includes(firebasePayload.provider)) {
+    throw new ApiError(400, 'This endpoint is for Google authentication only');
+  }
+
+  const { user, isNew } = await findOrCreateUser(firebasePayload);
+  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+
+  res
+    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+    .json(new ApiResponse(200, {
+      user: user.toSafeObject(),
+      accessToken,
+      isNewUser: isNew,
+    }, isNew ? 'Account created with Google' : 'Login successful'));
+});
+
+/**
+ * POST /api/v1/auth/google/token
+ *
+ * Client gets a raw Google ID token (e.g. from Google One Tap on web,
+ * or Google Sign-In SDK on mobile) and sends it here directly —
+ * without going through Firebase.
+ */
+export const googleTokenAuth = asyncHandler(async (req, res) => {
+  const { idToken } = req.body;
+
+  // Verify with Google's tokeninfo endpoint
+  const googlePayload = await verifyGoogleToken(idToken);
+
+  const { user, isNew } = await findOrCreateByGoogle(googlePayload);
+  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+
+  res
+    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+    .json(new ApiResponse(200, {
+      user: user.toSafeObject(),
+      accessToken,
+      isNewUser: isNew,
+    }, isNew ? 'Account created with Google' : 'Login successful'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  APPLE OAUTH (Firebase Apple sign-in)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/auth/apple/firebase
+ *
+ * Client signs in with Apple via Firebase SDK → sends Firebase ID token here.
+ */
+export const appleFirebaseAuth = asyncHandler(async (req, res) => {
+  const { firebaseIdToken } = req.body;
+
+  const firebasePayload = await FirebaseService.verifyAndExtract(firebaseIdToken);
+
+  if (firebasePayload.provider !== 'apple.com') {
+    throw new ApiError(400, 'This endpoint is for Apple authentication only');
+  }
+
+  const { user, isNew } = await findOrCreateUser(firebasePayload);
+  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+
+  res
+    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+    .json(new ApiResponse(200, {
+      user: user.toSafeObject(),
+      accessToken,
+      isNewUser: isNew,
+    }, isNew ? 'Account created with Apple' : 'Login successful'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  LINK ADDITIONAL AUTH METHOD TO EXISTING ACCOUNT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/auth/link-provider
+ *
+ * Authenticated user can link Google/Apple/Phone to their account.
+ * e.g. user signed up with phone, now wants to also sign in with Google.
+ */
+export const linkProvider = asyncHandler(async (req, res) => {
+  const { firebaseIdToken } = req.body;
+  const userId = req.user._id;
+
+  const firebasePayload = await FirebaseService.verifyAndExtract(firebaseIdToken);
+  const { uid, phone, email, provider } = firebasePayload;
+
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, 'User not found');
+
+  // Check provider not already linked to another account
+  if (phone) {
+    const conflict = await User.findOne({ phone, _id: { $ne: userId } });
+    if (conflict) throw new ApiError(409, 'This phone is linked to another account');
+  }
+  if (email) {
+    const conflict = await User.findOne({ email, _id: { $ne: userId } });
+    if (conflict) throw new ApiError(409, 'This email is linked to another account');
+  }
+
+  // Link
+  if (!user.firebaseUid) user.firebaseUid = uid;
+  if (phone && !user.phone)   { user.phone = phone; user.isPhoneVerified = true; }
+  if (email && !user.email)   { user.email = email; user.isEmailVerified = true; }
+
+  if (!user.authProviders.some((p) => p.provider === provider)) {
+    user.authProviders.push({ provider, providerId: uid });
+  }
+
+  await user.save();
+
+  // Invalidate cached user
+  await delCache(`user:${userId}`);
+
+  res.json(new ApiResponse(200, { user: user.toSafeObject() }, `${provider} linked successfully`));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TOKEN MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const refreshToken = asyncHandler(async (req, res) => {
+  const token = req.cookies?.refreshToken || req.body?.refreshToken;
+  if (!token) throw new ApiError(401, 'Refresh token required');
+
+  const decoded = verifyRefreshToken(token);
+  const user    = await User.findById(decoded.id);
+  if (!user) throw new ApiError(401, 'User not found');
+
+  const isValid = user.refreshTokens.some((t) => t.token === token);
+  if (!isValid) throw new ApiError(401, 'Invalid or expired refresh token');
+
+  // Rotate: remove old, issue new
+  user.refreshTokens = user.refreshTokens.filter((t) => t.token !== token);
+  const { accessToken, refreshToken: newRefresh } = await issueTokensAndSave(user, req.headers['user-agent']);
+
+  res
+    .cookie('refreshToken', newRefresh, COOKIE_OPTIONS)
+    .json(new ApiResponse(200, { accessToken }, 'Token refreshed'));
+});
+
+export const logout = asyncHandler(async (req, res) => {
+  const token = req.cookies?.refreshToken || req.body?.refreshToken;
+
+  if (token) {
+    await User.findByIdAndUpdate(req.user._id, {
+      $pull: { refreshTokens: { token } },
+    });
+  }
+
+  // Invalidate user cache
+  await delCache(`user:${req.user._id}`);
+
+  res
+    .clearCookie('refreshToken')
+    .json(new ApiResponse(200, null, 'Logged out successfully'));
+});
+
+export const logoutAllDevices = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  // Revoke all Firebase sessions too
+  if (user.firebaseUid) {
+    await FirebaseService.revokeTokens(user.firebaseUid);
+  }
+
+  user.refreshTokens = [];
+  await user.save();
+  await delCache(`user:${req.user._id}`);
+
+  res
+    .clearCookie('refreshToken')
+    .json(new ApiResponse(200, null, 'Logged out from all devices'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  HELPERS (internal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Verify a raw Google ID token using Google's public certs endpoint.
+ * Used when client sends a Google ID token directly (not via Firebase).
+ */
+const verifyGoogleToken = async (idToken) => {
+  const res  = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+  const data = await res.json();
+
+  if (data.error || data.aud !== process.env.GOOGLE_CLIENT_ID) {
+    throw new ApiError(401, 'Invalid Google token');
+  }
+
+  return {
+    googleId: data.sub,
+    email:    data.email,
+    name:     data.name,
+    picture:  data.picture,
+    isEmailVerified: data.email_verified === 'true',
+  };
+};
+
+const findOrCreateByGoogle = async ({ googleId, email, name, picture, isEmailVerified }) => {
+  let user = await User.findOne({ googleId });
+  if (user) return { user, isNew: false };
+
+  if (email) user = await User.findOne({ email });
+
+  if (user) {
+    // Merge Google into existing account
+    if (!user.googleId) user.googleId = googleId;
+    if (!user.avatar && picture) user.avatar = picture;
+    if (isEmailVerified) user.isEmailVerified = true;
+    user.authProviders.push({ provider: 'google', providerId: googleId });
+    await user.save();
+    return { user, isNew: false };
+  }
+
+  user = await User.create({
+    name,
+    email,
+    avatar:          picture || '',
+    googleId,
+    isEmailVerified,
+    authProviders:   [{ provider: 'google', providerId: googleId }],
+  });
+
+  return { user, isNew: true };
+};
