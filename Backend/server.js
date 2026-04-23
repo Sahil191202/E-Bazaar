@@ -1,16 +1,18 @@
-import 'dotenv/config';              // Load .env variables
-import './src/utils/logger.js';           // Init logger first (creates logs dir)
-import { createServer }            from 'http';
-import app                         from './src/app.js';
-import { connectDB }               from './src/config/db.js';
-import { connectRedis }            from './src/config/redis.js';
-import { initFirebase }            from './src/config/firebase.js';
-import { initCloudinary }          from './src/config/cloudinary.js';
-import { initSocket }              from './src/sockets/index.js';
-import { startOrderTimeoutJob }    from './src/jobs/orderTimeout.job.js';
-import { startDeliveryTimeoutJob } from './src/jobs/deliveryTimeout.job.js';
-import { startLocationPersistJob } from './src/jobs/locationPersist.job.js';
-import logger                      from './src/utils/logger.js';
+import 'dotenv/config';
+import "./src/utils/logger.js"; // Init logger first (creates logs dir)
+import { createServer } from "http";
+import app from "./src/app.js";
+import { connectDB } from "./src/config/db.js";
+import { connectRedis } from "./src/config/redis.js";
+import { initFirebase } from "./src/config/firebase.js";
+import { initCloudinary } from "./src/config/cloudinary.js";
+import { initSocket } from "./src/sockets/index.js";
+import { startOrderTimeoutJob } from "./src/jobs/orderTimeout.job.js";
+import { startDeliveryTimeoutJob } from "./src/jobs/deliveryTimeout.job.js";
+import { startLocationPersistJob } from "./src/jobs/locationPersist.job.js";
+import logger from "./src/utils/logger.js";
+
+console.log("Starting server...");
 
 const PORT       = process.env.PORT || 5000;
 const httpServer = createServer(app);

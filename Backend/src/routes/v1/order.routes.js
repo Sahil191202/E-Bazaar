@@ -2,12 +2,14 @@ import { Router }       from 'express';
 import { authenticate } from '../../middlewares/auth.middleware.js';
 import { authorize }    from '../../middlewares/role.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
+import express from 'express';
 import {
   initiateOrderSchema, verifyPaymentSchema, cancelOrderSchema,
   returnRequestSchema, updateItemStatusSchema,
   adminUpdateStatusSchema, refundSchema,
 }                       from '../../validators/order.validator.js';
 import * as Order       from '../../controllers/order.controller.js';
+import { logActivity } from '../../middlewares/activityLog.middleware.js';
 
 const router = Router();
 
