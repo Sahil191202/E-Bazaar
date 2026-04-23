@@ -14,48 +14,35 @@ import logger from "./src/utils/logger.js";
 
 console.log("Starting server...");
 
-const PORT = process.env.PORT || 5000;
+const PORT       = process.env.PORT || 5000;
 const httpServer = createServer(app);
 
 initSocket(httpServer);
 
-console.log("BOOT START");
-
 (async () => {
   try {
-    console.log("Step 1: Firebase");
     initFirebase();
-
-    console.log("Step 2: Cloudinary");
     initCloudinary();
-
-    console.log("Step 3: DB");
     await connectDB();
-
-    console.log("Step 4: Redis");
     await connectRedis();
 
-    console.log("Step 5: Jobs");
     startOrderTimeoutJob();
+    startDeliveryTimeoutJob();
+    startLocationPersistJob();
 
-    console.log("Step 6: Server listen");
     httpServer.listen(PORT, () => {
-      console.log(`Running on ${PORT}`);
+      logger.info(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV}]`);
     });
-
   } catch (err) {
-    console.error("CRASH:", err);
+    logger.error('Boot failed:', err.message);
+    process.exit(1);
   }
 
-  process.on("SIGTERM", () => {
-    logger.info("SIGTERM — shutting down gracefully");
+  process.on('SIGTERM', () => {
+    logger.info('SIGTERM — shutting down gracefully');
     httpServer.close(() => process.exit(0));
   });
 
-  process.on("uncaughtException", (err) =>
-    logger.error("Uncaught exception:", err),
-  );
-  process.on("unhandledRejection", (err) =>
-    logger.error("Unhandled rejection:", err),
-  );
+  process.on('uncaughtException',  (err) => logger.error('Uncaught exception:',  err));
+  process.on('unhandledRejection', (err) => logger.error('Unhandled rejection:', err));
 })();
