@@ -7,11 +7,11 @@ const wishlistItemSchema = new mongoose.Schema({
 }, { _id: true });
 
 const wishlistSchema = new mongoose.Schema({
-  user:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  user:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
   items: [wishlistItemSchema],
 }, { timestamps: true });
 
-wishlistSchema.index({ user: 1 });
+wishlistSchema.index({ user: 1 }, { unique: true });
 wishlistSchema.index({ 'items.product': 1 });
 
 export const Wishlist = mongoose.model('Wishlist', wishlistSchema);

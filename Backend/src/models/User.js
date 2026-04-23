@@ -16,54 +16,37 @@ const addressSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
   name:   { type: String, required: true, trim: true },
+  // No index:true here — defined below in schema.index()
   email:  { type: String, unique: true, sparse: true, lowercase: true, trim: true },
   phone:  { type: String, unique: true, sparse: true, trim: true },
   avatar: { type: String, default: '' },
-  role:   {
-    type:    String,
-    enum:    ['customer', 'vendor', 'agent', 'admin'],
-    default: 'customer',
-  },
+  role:   { type: String, enum: ['customer', 'vendor', 'agent', 'admin'], default: 'customer' },
 
-  // ─── Auth providers ──────────────────────────────────────────────────────────
-  // Firebase UID — set for phone-auth users and Firebase-OAuth users
   firebaseUid: { type: String, unique: true, sparse: true },
-
-  // OAuth provider IDs (for users who sign in via Google/Apple directly
-  // through your backend without going through Firebase)
   googleId:    { type: String, unique: true, sparse: true },
   appleId:     { type: String, unique: true, sparse: true },
 
-  // Which providers this account has linked
   authProviders: [{
     provider:   { type: String, enum: ['phone', 'google', 'apple', 'email'] },
-    providerId: String,               // UID / sub from that provider
+    providerId: String,
     linkedAt:   { type: Date, default: Date.now },
   }],
 
-  // ─── Verification flags ───────────────────────────────────────────────────
   isPhoneVerified: { type: Boolean, default: false },
   isEmailVerified: { type: Boolean, default: false },
+  isActive:        { type: Boolean, default: true },
+  isBanned:        { type: Boolean, default: false },
+  banReason:       String,
 
-  // ─── Account status ───────────────────────────────────────────────────────
-  isActive:  { type: Boolean, default: true },
-  isBanned:  { type: Boolean, default: false },
-  banReason: String,
-
-  // ─── Wallet ───────────────────────────────────────────────────────────────
   walletBalance: { type: Number, default: 0, min: 0 },
+  addresses:     [addressSchema],
 
-  // ─── Addresses ────────────────────────────────────────────────────────────
-  addresses: [addressSchema],
-
-  // ─── Refresh tokens (per device) ─────────────────────────────────────────
   refreshTokens: [{
     token:     String,
     device:    String,
     createdAt: { type: Date, default: Date.now },
   }],
 
-  // ─── Push notification tokens ────────────────────────────────────────────
   fcmTokens: [{
     token:    String,
     platform: { type: String, enum: ['android', 'ios', 'web'] },
@@ -72,10 +55,8 @@ const userSchema = new mongoose.Schema({
   lastLogin: Date,
 }, { timestamps: true });
 
-// Indexes
-userSchema.index({ phone: 1 });
-userSchema.index({ email: 1 });
-userSchema.index({ firebaseUid: 1 });
+// ✅ Only compound / non-unique indexes here
+// unique: true on the field itself already creates the index
 userSchema.index({ role: 1, isActive: 1 });
 
 userSchema.methods.toSafeObject = function () {

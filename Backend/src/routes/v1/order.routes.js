@@ -21,7 +21,7 @@ router.post('/webhook/razorpay',
 router.use(authenticate);
 
 // Customer
-router.post('/',                  validateBody(initiateOrderSchema),    Order.initiateOrder);
+router.post('/', authenticate, validateBody(initiateOrderSchema), logActivity('order_placed', 'Order'), Order.initiateOrder);
 router.post('/verify-payment',    validateBody(verifyPaymentSchema),    Order.verifyPayment);
 router.get('/my',                 Order.getMyOrders);
 router.get('/:id',                Order.getOrderById);

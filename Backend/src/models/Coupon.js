@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const couponSchema = new mongoose.Schema({
-  code:        { type: String, required: true, unique: true, uppercase: true, trim: true },
+  code:        { type: String, required: true, uppercase: true, trim: true },
   description: { type: String, default: '' },
 
   discountType:  { type: String, enum: ['flat', 'percent'], required: true },
@@ -41,7 +41,7 @@ const couponSchema = new mongoose.Schema({
   }],
 }, { timestamps: true });
 
-couponSchema.index({ code: 1 });
+couponSchema.index({ code: 1 }, { unique: true });
 couponSchema.index({ isActive: 1, expiresAt: 1 });
 couponSchema.index({ createdBy: 1 });
 

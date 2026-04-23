@@ -1,7 +1,8 @@
-import { Router }            from 'express';
-import { authenticate }      from '../../middlewares/auth.middleware.js';
-import { authRateLimiter }   from '../../middlewares/rateLimit.middleware.js';
-import { validateBody }      from '../../middlewares/validate.middleware.js';
+import { Router }          from 'express';
+import { authenticate }    from '../../middlewares/auth.middleware.js';
+import { authRateLimiter } from '../../middlewares/rateLimit.middleware.js';
+import { validateBody }    from '../../middlewares/validate.middleware.js';
+import { logActivity }     from '../../middlewares/activityLog.middleware.js';
 import {
   phoneVerifySchema,
   completeProfileSchema,
@@ -9,30 +10,70 @@ import {
   googleTokenSchema,
   appleFirebaseSchema,
   linkProviderSchema,
-}                            from '../../validators/auth.validator.js';
-import * as Auth             from '../../controllers/auth.controller.js';
+}                          from '../../validators/auth.validator.js';
+import * as Auth           from '../../controllers/auth.controller.js';
 
 const router = Router();
 
-// ── Phone OTP (Firebase handles the OTP, we just verify the ID token) ────────
-router.post('/phone/verify',           authRateLimiter, validateBody(phoneVerifySchema),    Auth.verifyPhoneAuth);
-router.post('/phone/complete-profile', authRateLimiter, validateBody(completeProfileSchema), Auth.completePhoneProfile);
+// ── Phone OTP ─────────────────────────────────────────────────────────────────
+router.post('/phone/verify',
+  authRateLimiter,
+  validateBody(phoneVerifySchema),
+  logActivity('phone_auth'),
+  Auth.verifyPhoneAuth
+);
+
+router.post('/phone/complete-profile',
+  authRateLimiter,
+  validateBody(completeProfileSchema),
+  logActivity('complete_profile'),
+  Auth.completePhoneProfile
+);
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────
-// Option A: via Firebase SDK (recommended for mobile apps)
-router.post('/google/firebase', authRateLimiter, validateBody(googleFirebaseSchema), Auth.googleFirebaseAuth);
-// Option B: raw Google ID token (for Google One Tap on web)
-router.post('/google/token',    authRateLimiter, validateBody(googleTokenSchema),    Auth.googleTokenAuth);
+router.post('/google/firebase',
+  authRateLimiter,
+  validateBody(googleFirebaseSchema),
+  logActivity('google_auth'),
+  Auth.googleFirebaseAuth
+);
 
-// ── Apple OAuth (via Firebase) ────────────────────────────────────────────────
-router.post('/apple/firebase',  authRateLimiter, validateBody(appleFirebaseSchema),  Auth.appleFirebaseAuth);
+router.post('/google/token',
+  authRateLimiter,
+  validateBody(googleTokenSchema),
+  logActivity('google_auth'),
+  Auth.googleTokenAuth
+);
 
-// ── Link additional provider to existing account ──────────────────────────────
-router.post('/link-provider',   authenticate, validateBody(linkProviderSchema), Auth.linkProvider);
+// ── Apple OAuth ───────────────────────────────────────────────────────────────
+router.post('/apple/firebase',
+  authRateLimiter,
+  validateBody(appleFirebaseSchema),
+  logActivity('apple_auth'),
+  Auth.appleFirebaseAuth
+);
+
+// ── Link provider to existing account ────────────────────────────────────────
+router.post('/link-provider',
+  authenticate,
+  validateBody(linkProviderSchema),
+  logActivity('link_provider'),
+  Auth.linkProvider
+);
 
 // ── Token management ──────────────────────────────────────────────────────────
-router.post('/refresh-token',   Auth.refreshToken);
-router.post('/logout',          authenticate, Auth.logout);
-router.post('/logout-all',      authenticate, Auth.logoutAllDevices);
+router.post('/refresh-token', Auth.refreshToken);
+
+router.post('/logout',
+  authenticate,
+  logActivity('logout'),
+  Auth.logout
+);
+
+router.post('/logout-all',
+  authenticate,
+  logActivity('logout_all'),
+  Auth.logoutAllDevices
+);
 
 export default router;

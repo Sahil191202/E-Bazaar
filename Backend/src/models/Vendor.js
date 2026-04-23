@@ -24,12 +24,11 @@ const vendorSchema = new mongoose.Schema({
     type:     mongoose.Schema.Types.ObjectId,
     ref:      'User',
     required: true,
-    unique:   true,
   },
 
   // ─── Store Info ───────────────────────────────────────────────────────────
   storeName:    { type: String, required: true, trim: true },
-  storeSlug:    { type: String, unique: true, trim: true, lowercase: true },
+  storeSlug:    { type: String, trim: true, lowercase: true },
   storeDesc:    { type: String, default: '' },
   storeLogo:    { type: String, default: '' },
   storeBanner:  { type: String, default: '' },
@@ -86,8 +85,8 @@ const vendorSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-vendorSchema.index({ user: 1 });
-vendorSchema.index({ storeSlug: 1 });
+vendorSchema.index({ user: 1 }, { unique: true });
+vendorSchema.index({ storeSlug: 1 }, { unique: true });
 vendorSchema.index({ kycStatus: 1 });
 vendorSchema.index({ isActive: 1, isFeatured: -1 });
 

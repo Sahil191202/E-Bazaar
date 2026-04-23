@@ -29,7 +29,6 @@ const deliveryAgentSchema = new mongoose.Schema({
     type:     mongoose.Schema.Types.ObjectId,
     ref:      'User',
     required: true,
-    unique:   true,
   },
 
   // ─── Profile ──────────────────────────────────────────────────────────────
@@ -94,7 +93,7 @@ deliveryAgentSchema.pre('save', async function (next) {
 
 // Geo index for proximity queries
 deliveryAgentSchema.index({ lastLocation: '2dsphere' });
-deliveryAgentSchema.index({ user: 1 });
+deliveryAgentSchema.index({ user: 1 }, { unique: true });
 deliveryAgentSchema.index({ isOnline: 1, isActive: 1 });
 deliveryAgentSchema.index({ kycStatus: 1 });
 

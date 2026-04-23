@@ -64,7 +64,7 @@ const addressSnapshotSchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema({
   // Readable order ID shown to users
-  orderId: { type: String, unique: true },
+  orderId: { type: String },
 
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
@@ -150,8 +150,8 @@ orderSchema.pre('save', async function (next) {
 });
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
+orderSchema.index({ orderId: 1 }, { unique: true }); // single source of truth
 orderSchema.index({ customer: 1, createdAt: -1 });
-orderSchema.index({ orderId: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'items.vendor': 1, status: 1 });
 orderSchema.index({ razorpayOrderId: 1 });

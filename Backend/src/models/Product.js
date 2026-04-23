@@ -47,7 +47,7 @@ const ratingSchema = new mongoose.Schema({
 
 const productSchema = new mongoose.Schema({
   name:        { type: String, required: true, trim: true },
-  slug:        { type: String, unique: true },
+  slug:        { type: String },
   description: { type: String, required: true },
   shortDesc:   { type: String, default: '' }, // For cards/listings
 
@@ -132,7 +132,7 @@ productSchema.pre('save', async function (next) {
 // ─── Indexes (critical for search & filter performance) ───────────────────────
 
 productSchema.index({ name: 'text', description: 'text', brand: 'text', tags: 'text' });
-productSchema.index({ slug: 1 });
+productSchema.index({ slug: 1 }, { unique: true });
 productSchema.index({ vendor: 1, status: 1 });
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ status: 1, basePrice: 1 });
