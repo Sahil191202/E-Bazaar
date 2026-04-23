@@ -36,11 +36,11 @@ export const connectDB = async () => {
     });
 
     // ── Query performance monitoring ──────────────────────────────────────
-    if (process.env.NODE_ENV === 'development') {
-      mongoose.set('debug', (collectionName, method, query, doc) => {
-        logger.debug(`MongoDB: ${collectionName}.${method}`, { query });
-      });
-    }
+    // if (process.env.NODE_ENV === 'development') {
+    //   mongoose.set('debug', (collectionName, method, query, doc) => {
+    //     logger.debug(`MongoDB: ${collectionName}.${method}`, { query });
+    //   });
+    // }
 
     // Slow query detection (> 100ms)
     mongoose.connection.on('commandStarted', () => {});

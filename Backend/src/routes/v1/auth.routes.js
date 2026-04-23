@@ -30,6 +30,24 @@ router.post('/phone/complete-profile',
   Auth.completePhoneProfile
 );
 
+// ── Email OTP ──────────────────────────────────────────────────────────────────
+router.post('/email/send-otp',
+  authRateLimiter,
+  logActivity('email_otp_request'),
+  Auth.sendEmailOTP
+);
+
+router.post('/email/verify-otp',
+  authRateLimiter,
+  logActivity('email_auth'),
+  Auth.verifyEmailOTP
+);
+
+router.post('/email/complete-profile',
+  authRateLimiter,
+  Auth.completeEmailProfile
+);
+
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 router.post('/google/firebase',
   authRateLimiter,
