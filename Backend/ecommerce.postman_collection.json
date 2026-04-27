@@ -1,0 +1,1094 @@
+{
+  "info": {
+    "name": "E-Commerce API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "addressId", "value": "" },
+    { "key": "deliveryId", "value": "" },
+    { "key": "vendorId", "value": "" },
+    { "key": "couponId", "value": "" },
+    { "key": "reviewId", "value": "" },
+    { "key": "bannerId", "value": "" },
+    { "key": "agentId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Phone - Verify OTP (Firebase)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/phone/verify",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"PASTE_FIREBASE_ID_TOKEN_HERE\",\n  \"name\": \"Test User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Phone - Complete Profile",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/phone/complete-profile",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"PASTE_FIREBASE_ID_TOKEN_HERE\",\n  \"name\": \"Test User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Google - Firebase Auth",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/google/firebase",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"PASTE_FIREBASE_ID_TOKEN_HERE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Google - Raw Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/google/token",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"PASTE_GOOGLE_ID_TOKEN_HERE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Apple - Firebase Auth",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/apple/firebase",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"PASTE_FIREBASE_ID_TOKEN_HERE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/refresh-token",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/logout",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}" }] }
+          }
+        },
+        {
+          "name": "Logout All Devices",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/logout-all",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}" }] }
+          }
+        },
+        {
+          "name": "Link Provider",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/auth/link-provider",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}" }] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"PASTE_TOKEN_HERE\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": { "method": "GET", "url": "{{base}}/users/profile" }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/users/profile",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Name\"\n}" }
+          }
+        },
+        {
+          "name": "Get Addresses",
+          "request": { "method": "GET", "url": "{{base}}/users/addresses" }
+        },
+        {
+          "name": "Add Address",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/users/addresses",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"fullName\": \"John Doe\",\n  \"phone\": \"9876543210\",\n  \"line1\": \"123 MG Road\",\n  \"line2\": \"Near City Mall\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"400001\",\n  \"isDefault\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/users/addresses/{{addressId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"Office\",\n  \"line2\": \"Floor 3\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Address",
+          "request": { "method": "DELETE", "url": "{{base}}/users/addresses/{{addressId}}" }
+        },
+        {
+          "name": "Set Default Address",
+          "request": { "method": "PATCH", "url": "{{base}}/users/addresses/{{addressId}}/default" }
+        },
+        {
+          "name": "Get Wishlist",
+          "request": { "method": "GET", "url": "{{base}}/users/wishlist" }
+        },
+        {
+          "name": "Add to Wishlist",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/users/wishlist",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": \"{{productId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Check Wishlist",
+          "request": { "method": "GET", "url": "{{base}}/users/wishlist/check/{{productId}}" }
+        },
+        {
+          "name": "Remove from Wishlist",
+          "request": { "method": "DELETE", "url": "{{base}}/users/wishlist/{{productId}}" }
+        },
+        {
+          "name": "Move to Cart",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/users/wishlist/{{productId}}/move-to-cart",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"variantId\": \"VARIANT_ID_HERE\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get Category Tree",
+          "request": { "method": "GET", "url": "{{base}}/categories" }
+        },
+        {
+          "name": "Get All Categories (Admin)",
+          "request": { "method": "GET", "url": "{{base}}/categories/all" }
+        },
+        {
+          "name": "Create Category (Admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/categories",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"All electronic items\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Sub-Category (Admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/categories",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smartphones\",\n  \"parentId\": \"{{categoryId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/categories/{{categoryId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Name\",\n  \"isActive\": true\n}" }
+          }
+        },
+        {
+          "name": "Delete Category (Admin)",
+          "request": { "method": "DELETE", "url": "{{base}}/categories/{{categoryId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get Products (Public)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base}}/products?page=1&limit=10&sort=newest",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sort", "value": "newest" },
+                { "key": "q", "value": "", "disabled": true },
+                { "key": "minPrice", "value": "", "disabled": true },
+                { "key": "maxPrice", "value": "", "disabled": true },
+                { "key": "rating", "value": "", "disabled": true },
+                { "key": "inStock", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Suggestions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/products/suggestions?q=phone", "query": [{ "key": "q", "value": "phone" }] }
+          }
+        },
+        {
+          "name": "Get Product by Slug",
+          "request": { "method": "GET", "url": "{{base}}/products/slug/product-slug-here" }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": { "method": "GET", "url": "{{base}}/products/{{productId}}" }
+        },
+        {
+          "name": "Create Product (Vendor)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/products",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"iPhone 15 Pro\",\n  \"description\": \"Latest iPhone with A17 Pro chip and titanium design\",\n  \"shortDesc\": \"Apple iPhone 15 Pro 256GB\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"brand\": \"Apple\",\n  \"tags\": [\"smartphone\", \"apple\", \"iphone\"],\n  \"variants\": [\n    {\n      \"sku\": \"IPH15P-256-BLK\",\n      \"price\": 134900,\n      \"mrp\": 139900,\n      \"stock\": 50,\n      \"attributes\": { \"color\": \"Black Titanium\", \"storage\": \"256GB\" },\n      \"weight\": 187\n    }\n  ],\n  \"isFreeShipping\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Product (Vendor)",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/products/{{productId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"shortDesc\": \"Updated short description\"\n}" }
+          }
+        },
+        {
+          "name": "Add Variant (Vendor)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/products/{{productId}}/variants",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"IPH15P-512-WHT\",\n  \"price\": 149900,\n  \"mrp\": 154900,\n  \"stock\": 30,\n  \"attributes\": { \"color\": \"White Titanium\", \"storage\": \"512GB\" }\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Vendor Products",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/products/vendor/my-products?status=active", "query": [{ "key": "status", "value": "active" }] }
+          }
+        },
+        {
+          "name": "Approve Product (Admin)",
+          "request": { "method": "PATCH", "url": "{{base}}/products/{{productId}}/approve" }
+        },
+        {
+          "name": "Reject Product (Admin)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base}}/products/{{productId}}/reject",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Images are not clear. Please upload high-quality images.\"\n}" }
+          }
+        },
+        {
+          "name": "Inventory Logs (Vendor)",
+          "request": { "method": "GET", "url": "{{base}}/products/{{productId}}/inventory" }
+        },
+        {
+          "name": "Adjust Stock (Vendor)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/products/inventory/adjust",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"variantId\": \"VARIANT_ID_HERE\",\n  \"quantity\": 10,\n  \"note\": \"Manual restock\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": { "method": "GET", "url": "{{base}}/cart" }
+        },
+        {
+          "name": "Validate Cart",
+          "request": { "method": "GET", "url": "{{base}}/cart/validate" }
+        },
+        {
+          "name": "Add to Cart",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/cart/add",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"variantId\": \"VARIANT_ID_HERE\",\n  \"quantity\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Cart Item",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/cart/items/ITEM_ID_HERE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 3\n}" }
+          }
+        },
+        {
+          "name": "Remove Cart Item",
+          "request": { "method": "DELETE", "url": "{{base}}/cart/items/ITEM_ID_HERE" }
+        },
+        {
+          "name": "Clear Cart",
+          "request": { "method": "DELETE", "url": "{{base}}/cart" }
+        },
+        {
+          "name": "Apply Coupon",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/cart/coupon",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE10\"\n}" }
+          }
+        },
+        {
+          "name": "Remove Coupon",
+          "request": { "method": "DELETE", "url": "{{base}}/cart/coupon" }
+        },
+        {
+          "name": "Merge Guest Cart",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/cart/merge",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestItems\": [\n    { \"productId\": \"{{productId}}\", \"variantId\": \"VARIANT_ID\", \"quantity\": 2 }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Initiate Order (Razorpay)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/orders",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"paymentMethod\": \"razorpay\",\n  \"customerNote\": \"Please handle with care\",\n  \"walletAmount\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Initiate Order (COD)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/orders",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"paymentMethod\": \"cod\",\n  \"walletAmount\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/orders/verify-payment",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"razorpayOrderId\": \"order_XXXX\",\n  \"razorpayPaymentId\": \"pay_XXXX\",\n  \"razorpaySignature\": \"SIGNATURE_HERE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/orders/my?page=1&limit=10", "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }] }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "request": { "method": "GET", "url": "{{base}}/orders/{{orderId}}" }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/orders/{{orderId}}/cancel",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Changed my mind\"\n}" }
+          }
+        },
+        {
+          "name": "Request Return",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/orders/{{orderId}}/return",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"ITEM_ID_HERE\",\n  \"reason\": \"Product is damaged\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Vendor Orders",
+          "request": { "method": "GET", "url": "{{base}}/orders/vendor/orders" }
+        },
+        {
+          "name": "Update Item Status (Vendor)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base}}/orders/vendor/items/ITEM_ID_HERE/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"packed\",\n  \"trackingNumber\": \"TRACK123456\",\n  \"carrier\": \"Delhivery\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin - Get All Orders",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/orders/admin/all?page=1", "query": [{ "key": "page", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Admin - Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base}}/orders/admin/{{orderId}}/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"delivered\",\n  \"note\": \"Delivered successfully\"\n}" }
+          }
+        },
+        {
+          "name": "Admin - Initiate Refund",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/orders/admin/{{orderId}}/refund",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 999,\n  \"reason\": \"Item not delivered\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "My Payment History",
+          "request": { "method": "GET", "url": "{{base}}/payments/my" }
+        },
+        {
+          "name": "My Wallet",
+          "request": { "method": "GET", "url": "{{base}}/payments/wallet" }
+        },
+        {
+          "name": "Admin - All Payments",
+          "request": { "method": "GET", "url": "{{base}}/payments/admin/all" }
+        }
+      ]
+    },
+    {
+      "name": "Vendor",
+      "item": [
+        {
+          "name": "Register as Vendor",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/vendors/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeName\": \"Tech Store India\",\n  \"storeDesc\": \"Best electronics at best prices\",\n  \"storeEmail\": \"store@techstore.com\",\n  \"storePhone\": \"9876543210\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"gstNumber\": \"27ABCDE1234F1Z5\",\n  \"storeAddress\": {\n    \"line1\": \"Shop 12, Electronics Market\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Vendor Profile",
+          "request": { "method": "GET", "url": "{{base}}/vendors/profile" }
+        },
+        {
+          "name": "Update Bank Details",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/vendors/bank-details",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountHolderName\": \"Tech Store India\",\n  \"accountNumber\": \"1234567890123\",\n  \"ifscCode\": \"SBIN0001234\",\n  \"bankName\": \"State Bank of India\",\n  \"branchName\": \"Fort Branch\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard",
+          "request": { "method": "GET", "url": "{{base}}/vendors/dashboard" }
+        },
+        {
+          "name": "Get Sales Analytics",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/vendors/analytics/sales?period=monthly", "query": [{ "key": "period", "value": "monthly" }] }
+          }
+        },
+        {
+          "name": "Get Payouts",
+          "request": { "method": "GET", "url": "{{base}}/vendors/payouts" }
+        },
+        {
+          "name": "Request Payout",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/vendors/payouts/request",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 5000\n}" }
+          }
+        },
+        {
+          "name": "Create Coupon (Vendor)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/vendors/coupons",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"VENDORSALE20\",\n  \"description\": \"20% off on all products\",\n  \"discountType\": \"percent\",\n  \"discountValue\": 20,\n  \"maxDiscount\": 500,\n  \"minOrderValue\": 1000,\n  \"maxUses\": 100,\n  \"expiresAt\": \"2025-12-31T23:59:59Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get My Coupons",
+          "request": { "method": "GET", "url": "{{base}}/vendors/coupons" }
+        },
+        {
+          "name": "Shipping Label",
+          "request": { "method": "GET", "url": "{{base}}/vendors/orders/{{orderId}}/shipping-label" }
+        },
+        {
+          "name": "Packaging Slip",
+          "request": { "method": "GET", "url": "{{base}}/vendors/orders/{{orderId}}/packaging-slip" }
+        },
+        {
+          "name": "Public Store Page",
+          "request": { "method": "GET", "url": "{{base}}/vendors/store/store-slug-here" }
+        },
+        {
+          "name": "Admin - Pending KYC",
+          "request": { "method": "GET", "url": "{{base}}/vendors/admin/kyc?status=pending" }
+        },
+        {
+          "name": "Admin - Review KYC (Approve)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/vendors/admin/{{vendorId}}/kyc",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\"\n}" }
+          }
+        },
+        {
+          "name": "Admin - Review KYC (Reject)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/vendors/admin/{{vendorId}}/kyc",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"reject\",\n  \"reason\": \"PAN card image is blurry. Please re-upload.\"\n}" }
+          }
+        },
+        {
+          "name": "Admin - Process Payout",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/vendors/admin/payouts/PAYOUT_ID_HERE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"complete\",\n  \"transactionId\": \"TXN12345678\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delivery Agent",
+      "item": [
+        {
+          "name": "Register as Agent",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleType\": \"bike\",\n  \"vehicleNumber\": \"MH12AB1234\",\n  \"vehicleModel\": \"Honda Activa\",\n  \"vehicleColor\": \"Red\",\n  \"serviceZones\": [\"Mumbai-North\", \"Mumbai-West\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Agent Profile",
+          "request": { "method": "GET", "url": "{{base}}/agents/profile" }
+        },
+        {
+          "name": "Toggle Availability",
+          "request": { "method": "PATCH", "url": "{{base}}/agents/availability" }
+        },
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/location",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"lat\": 19.0760,\n  \"lng\": 72.8777\n}" }
+          }
+        },
+        {
+          "name": "Get Active Delivery",
+          "request": { "method": "GET", "url": "{{base}}/agents/delivery/active" }
+        },
+        {
+          "name": "Accept Delivery",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/delivery/{{deliveryId}}/accept"
+          }
+        },
+        {
+          "name": "Reject Delivery",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/delivery/{{deliveryId}}/reject",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Too far from current location\"\n}" }
+          }
+        },
+        {
+          "name": "Mark Picked Up",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/delivery/{{deliveryId}}/pickup",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"lat\": 19.0760,\n  \"lng\": 72.8777,\n  \"note\": \"Package collected\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP and Deliver",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/delivery/{{deliveryId}}/verify-otp",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"otp\": \"1234\",\n  \"lat\": 19.0760,\n  \"lng\": 72.8777\n}" }
+          }
+        },
+        {
+          "name": "Mark Failed Attempt",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/delivery/{{deliveryId}}/failed",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Customer not available at address\",\n  \"lat\": 19.0760,\n  \"lng\": 72.8777\n}" }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": { "method": "POST", "url": "{{base}}/agents/delivery/{{deliveryId}}/resend-otp" }
+        },
+        {
+          "name": "Get Delivery History",
+          "request": { "method": "GET", "url": "{{base}}/agents/deliveries" }
+        },
+        {
+          "name": "Get Earnings Dashboard",
+          "request": { "method": "GET", "url": "{{base}}/agents/earnings" }
+        },
+        {
+          "name": "Rate Agent (Customer)",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/delivery/{{deliveryId}}/rate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"feedback\": \"Very fast delivery!\"\n}" }
+          }
+        },
+        {
+          "name": "Get Agent Contact (Customer)",
+          "request": { "method": "GET", "url": "{{base}}/agents/order/{{orderId}}/contact" }
+        },
+        {
+          "name": "Admin - Get All Agents",
+          "request": { "method": "GET", "url": "{{base}}/agents/admin/all" }
+        },
+        {
+          "name": "Admin - Assign Agent",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/admin/assign",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"agentUserId\": \"{{agentId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin - Review Agent KYC",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/agents/admin/{{agentId}}/kyc",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Get Product Reviews",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/reviews/product/{{productId}}?sort=newest", "query": [{ "key": "sort", "value": "newest" }] }
+          }
+        },
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/reviews",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"orderId\": \"{{orderId}}\",\n  \"rating\": 5,\n  \"title\": \"Excellent product!\",\n  \"body\": \"Delivery was fast and product quality is superb.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get My Reviews",
+          "request": { "method": "GET", "url": "{{base}}/reviews/my" }
+        },
+        {
+          "name": "Mark Helpful",
+          "request": { "method": "POST", "url": "{{base}}/reviews/{{reviewId}}/helpful" }
+        },
+        {
+          "name": "Vendor Reply",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/reviews/{{reviewId}}/vendor-reply",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reply\": \"Thank you for your feedback! We're glad you loved the product.\"\n}" }
+          }
+        },
+        {
+          "name": "Admin - Flag Review",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base}}/reviews/{{reviewId}}/flag",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Fake review\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coupons",
+      "item": [
+        {
+          "name": "Get Public Coupons",
+          "request": { "method": "GET", "url": "{{base}}/coupons/public" }
+        },
+        {
+          "name": "Validate Coupon",
+          "request": { "method": "GET", "url": "{{base}}/coupons/validate/SAVE10" }
+        },
+        {
+          "name": "Admin - Get All Coupons",
+          "request": { "method": "GET", "url": "{{base}}/coupons" }
+        },
+        {
+          "name": "Admin - Create Coupon",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/coupons",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FLAT100\",\n  \"description\": \"Flat ₹100 off on orders above ₹999\",\n  \"discountType\": \"flat\",\n  \"discountValue\": 100,\n  \"minOrderValue\": 999,\n  \"maxUses\": 500,\n  \"maxUsesPerUser\": 1,\n  \"expiresAt\": \"2025-12-31T23:59:59Z\",\n  \"applicableTo\": \"all\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin - Toggle Coupon",
+          "request": { "method": "PATCH", "url": "{{base}}/coupons/{{couponId}}/toggle" }
+        },
+        {
+          "name": "Admin - Delete Coupon",
+          "request": { "method": "DELETE", "url": "{{base}}/coupons/{{couponId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Platform Dashboard",
+          "request": { "method": "GET", "url": "{{base}}/admin/dashboard" }
+        },
+        {
+          "name": "Platform Analytics",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/admin/analytics?period=monthly", "query": [{ "key": "period", "value": "monthly" }] }
+          }
+        },
+        {
+          "name": "Financial Overview",
+          "request": { "method": "GET", "url": "{{base}}/admin/financial" }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/admin/users?role=customer&page=1", "query": [{ "key": "role", "value": "customer" }, { "key": "page", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Get User Detail",
+          "request": { "method": "GET", "url": "{{base}}/admin/users/USER_ID_HERE" }
+        },
+        {
+          "name": "Ban User",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/admin/users/USER_ID_HERE/ban",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Fraudulent activity detected\"\n}" }
+          }
+        },
+        {
+          "name": "Unban User",
+          "request": { "method": "POST", "url": "{{base}}/admin/users/USER_ID_HERE/unban" }
+        },
+        {
+          "name": "Get Commission Config",
+          "request": { "method": "GET", "url": "{{base}}/admin/commission" }
+        },
+        {
+          "name": "Set Global Commission",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/admin/commission/global",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"rate\": 12,\n  \"description\": \"Platform default commission 12%\"\n}" }
+          }
+        },
+        {
+          "name": "Set Vendor Commission",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/admin/commission/vendor",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendorUserId\": \"{{vendorId}}\",\n  \"rate\": 8,\n  \"description\": \"Premium vendor - reduced commission\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Banners",
+          "request": { "method": "GET", "url": "{{base}}/admin/banners" }
+        },
+        {
+          "name": "Get All Policies",
+          "request": { "method": "GET", "url": "{{base}}/admin/policies" }
+        },
+        {
+          "name": "Get Policy",
+          "request": { "method": "GET", "url": "{{base}}/admin/policies/privacy_policy" }
+        },
+        {
+          "name": "Upsert Policy",
+          "request": {
+            "method": "PUT",
+            "url": "{{base}}/admin/policies/privacy_policy",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Privacy Policy\",\n  \"content\": \"<h1>Privacy Policy</h1><p>We respect your privacy...</p>\",\n  \"version\": \"2.0\",\n  \"changeNotes\": \"Updated data retention section\",\n  \"publish\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Activity Logs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base}}/admin/activity-logs?flagged=true", "query": [{ "key": "flagged", "value": "true" }] }
+          }
+        },
+        {
+          "name": "Get Fraud Report",
+          "request": { "method": "GET", "url": "{{base}}/admin/fraud-report" }
+        },
+        {
+          "name": "Send Bulk Notification",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/admin/notifications/bulk",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"🎉 Sale Alert!\",\n  \"message\": \"Up to 50% off on electronics. Shop now!\",\n  \"targetAudience\": \"customers\",\n  \"type\": \"promotion\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Notification Stats",
+          "request": { "method": "GET", "url": "{{base}}/admin/notifications/stats" }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": { "method": "GET", "url": "{{base}}/notifications?page=1&limit=20" }
+        },
+        {
+          "name": "Mark All Read",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/notifications/read",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": []\n}" }
+          }
+        },
+        {
+          "name": "Mark Specific Read",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/notifications/read",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": [\"NOTIFICATION_ID_1\", \"NOTIFICATION_ID_2\"]\n}" }
+          }
+        },
+        {
+          "name": "Unread Count",
+          "request": { "method": "GET", "url": "{{base}}/notifications/unread-count" }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": { "method": "GET", "url": "http://localhost:5000/health" }
+        },
+        {
+          "name": "Readiness Check",
+          "request": { "method": "GET", "url": "http://localhost:5000/health/ready" }
+        }
+      ]
+    },
+    {
+      "name": "FCM",
+      "item": [
+        {
+          "name": "Register FCM Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base}}/upload/fcm/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"FCM_DEVICE_TOKEN_HERE\",\n  \"platform\": \"android\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Unregister FCM Token",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base}}/upload/fcm/unregister",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"FCM_DEVICE_TOKEN_HERE\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
