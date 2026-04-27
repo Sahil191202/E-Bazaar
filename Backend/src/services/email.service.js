@@ -80,4 +80,24 @@ export class EmailService {
       `,
     });
   }
+
+  // email.service.js — existing class mein add karo
+
+static async sendEmailOTP(email, otp) {
+  await this.send({
+    to:      email,
+    subject: `Your OTP is ${otp} — valid for 10 minutes`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
+        <h2 style="color:#111">Your verification code</h2>
+        <p style="color:#555">Use the OTP below to verify your email. It expires in <strong>10 minutes</strong>.</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;text-align:center;
+                    padding:16px;background:#f5f5f5;border-radius:6px;margin:20px 0">
+          ${otp}
+        </div>
+        <p style="color:#999;font-size:13px">If you didn't request this, please ignore this email.</p>
+      </div>
+    `,
+  });
+}
 }
