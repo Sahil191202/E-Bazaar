@@ -260,7 +260,6 @@ export const googleTokenAuth = asyncHandler(async (req, res) => {
     req.headers["user-agent"],
   );
 
-  console.log("refreshToken", refreshToken);
   res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS).json(
     new ApiResponse(
       200,
