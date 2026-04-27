@@ -18,8 +18,8 @@ const EMAIL_OTP_MAX_TRIES = 5;
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 const generateOTP = (length = 6) => {
