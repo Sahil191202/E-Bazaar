@@ -8,7 +8,11 @@ import {
 import { ApiResponse }         from '../utils/ApiResponse.js';
 import { ApiError }            from '../utils/ApiError.js';
 import { asyncHandler }        from '../utils/asyncHandler.js';
-import { getCache, setCache, delCache } from '../config/redis.js';
+import { getCache, setCache, delCache, getRedis } from '../config/redis.js';
+import { EmailService } from '../services/email.service.js';
+
+const EMAIL_OTP_TTL       = 300;  // 5 minutes
+const EMAIL_OTP_MAX_TRIES = 5;
 
 // ─── Cookie config ────────────────────────────────────────────────────────────
 const COOKIE_OPTIONS = {
@@ -16,6 +20,14 @@ const COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === "production",
   sameSite: "strict",
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+};
+
+const generateOTP = (length = 6) => {
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    otp += Math.floor(Math.random() * 10).toString();
+  }
+  return otp;
 };
 
 // ─── Shared helper: issue JWT pair and persist refresh token ─────────────────
