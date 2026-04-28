@@ -30,3 +30,11 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   req.user = user;
   next();
 });
+
+export const optionalAuth = async (req, res, next) => {
+  try {
+    await authenticate(req, res, next);
+  } catch {
+    next(); // token nahi hai toh bhi continue karo
+  }
+};

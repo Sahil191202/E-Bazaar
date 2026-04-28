@@ -142,7 +142,33 @@ export const getProducts = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
 
   // ── Build filter ────────────────────────────────────────────────────────────
-  const filter = { status: "active" };
+  const filter = {};
+
+  if (req.query.status) {
+    filter.status = req.query.status;
+  } else {
+    filter.status = "active";
+  }
+
+  if (req.query.status && req.query.status !== "active") {
+  // Sirf admin hi non-active products dekh sakta hai
+  if (!req.user || req.user.role !== "admin") {
+    filter.status = "active"; // non-admin ko force active
+  } else {
+    filter.status = req.query.status;
+  }
+} else {
+  filter.status = req.query.status || "active";
+
+  // Public route pe req.user nahi hoga
+const isAdmin = req.user?.role === "admin";
+
+if (req.query.status && isAdmin) {
+  filter.status = req.query.status;
+} else {
+  filter.status = "active"; // public aur non-admin ke liye hamesha active
+}
+}
 
   // Full-text search
   if (q) {
@@ -238,7 +264,7 @@ export const getProductBySlug = asyncHandler(async (req, res) => {
 
   const product = await Product.findOne({
     slug: req.params.slug,
-    status: "active",
+    status: { $in: ["active", "pending_approval"] },
   })
     .populate("category", "name slug ancestors")
     .populate("subCategory", "name slug")
@@ -548,7 +574,7 @@ export const getVendorProducts = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select("name images status basePrice totalStock rating createdAt")
+      .select("name slug images status basePrice totalStock rating createdAt")
       .lean(),
     Product.countDocuments(filter),
   ]);

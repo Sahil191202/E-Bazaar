@@ -3,6 +3,7 @@ import { authenticate }   from '../../middlewares/auth.middleware.js';
 import { authorize }      from '../../middlewares/role.middleware.js';
 import { validateBody }   from '../../middlewares/validate.middleware.js';
 import { uploadImages, uploadFile } from '../../middlewares/upload.middleware.js';
+import {optionalAuth} from '../../middlewares/auth.middleware.js';
 import {
   createProductSchema, updateProductSchema, rejectProductSchema,
 }                         from '../../validators/product.validator.js';
@@ -11,7 +12,7 @@ import * as Product       from '../../controllers/product.controller.js';
 const router = Router();
 
 // ── Public ────────────────────────────────────────────────────────────────────
-router.get('/',                   Product.getProducts);
+router.get('/',                   optionalAuth, Product.getProducts);
 router.get('/suggestions',        Product.searchSuggestions);
 router.get('/slug/:slug',         Product.getProductBySlug);
 router.get('/:id',                Product.getProductById);
