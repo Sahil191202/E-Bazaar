@@ -12,3 +12,5 @@ npm-debug.log
 yarn-error.log
 # Optional: Ignore build artifacts
 build/
+
+firebase-admin.json
