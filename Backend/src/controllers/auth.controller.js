@@ -239,7 +239,11 @@ export const verifyEmailOTP = asyncHandler(async (req, res) => {
       await user.save();
     }
     // authProvider link karo agar nahi hai
-    if (!user.authProviders.some((p) => p.provider === "email_otp")) {
+    if (
+      !user.authProviders.some(
+        (p) => p.provider === "email" && p.providerId === normalizedEmail,
+      )
+    ) {
       user.authProviders.push({
         provider: "email",
         providerId: normalizedEmail,
@@ -616,45 +620,45 @@ export const refreshToken = asyncHandler(async (req, res) => {
   const token = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!token) {
-    throw new ApiError(401, 'Refresh token required');
+    throw new ApiError(401, "Refresh token required");
   }
 
   let decoded;
   try {
     decoded = verifyRefreshToken(token);
   } catch {
-    throw new ApiError(401, 'Invalid or expired refresh token');
+    throw new ApiError(401, "Invalid or expired refresh token");
   }
 
   const user = await User.findById(decoded.id);
-  if (!user) throw new ApiError(401, 'User not found');
+  if (!user) throw new ApiError(401, "User not found");
 
   // Check if this refresh token is still in the DB
   const isValid = user.refreshTokens.some((t) => t.token === token);
-  if (!isValid) throw new ApiError(401, 'Refresh token revoked');
+  if (!isValid) throw new ApiError(401, "Refresh token revoked");
 
   // Rotate: remove old, issue new
   user.refreshTokens = user.refreshTokens.filter((t) => t.token !== token);
 
-  const accessToken    = generateAccessToken({ id: user._id, role: user.role });
+  const accessToken = generateAccessToken({ id: user._id, role: user.role });
   const newRefreshToken = generateRefreshToken({ id: user._id });
 
   user.refreshTokens.push({
-    token:     newRefreshToken,
-    device:    req.headers['user-agent'] || 'unknown',
+    token: newRefreshToken,
+    device: req.headers["user-agent"] || "unknown",
     createdAt: new Date(),
   });
   await user.save();
 
   // Set new refreshToken in HttpOnly cookie
-  res.cookie('refreshToken', newRefreshToken, {
+  res.cookie("refreshToken", newRefreshToken, {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
 
-  res.json(new ApiResponse(200, { accessToken }, 'Token refreshed'));
+  res.json(new ApiResponse(200, { accessToken }, "Token refreshed"));
 });
 
 export const logout = asyncHandler(async (req, res) => {
