@@ -33,22 +33,25 @@ const generateOTP = (length = 6) => {
 
 // ─── Shared helper: issue JWT pair and persist refresh token ─────────────────
 const issueTokensAndSave = async (user, userAgent) => {
-  const accessToken  = generateAccessToken({ id: user._id, role: user.role });
+  const accessToken = generateAccessToken({ id: user._id, role: user.role });
   const refreshToken = generateRefreshToken({ id: user._id });
 
   // Atomic update — no VersionError on concurrent saves
-  await User.findByIdAndUpdate(
-    user._id,
-    {
-      $push: {
-        refreshTokens: {
-          $each: [{ token: refreshToken, device: userAgent || "unknown", createdAt: new Date() }],
-          $slice: -5, // max 5 sessions, keep newest
-        },
+  await User.findByIdAndUpdate(user._id, {
+    $push: {
+      refreshTokens: {
+        $each: [
+          {
+            token: refreshToken,
+            device: userAgent || "unknown",
+            createdAt: new Date(),
+          },
+        ],
+        $slice: -5, // max 5 sessions, keep newest
       },
-      $set: { lastLogin: new Date() },
-    }
-  );
+    },
+    $set: { lastLogin: new Date() },
+  });
 
   return { accessToken, refreshToken };
 };
@@ -644,36 +647,42 @@ export const refreshToken = asyncHandler(async (req, res) => {
   }
 
   // Generate new tokens
-  const accessToken    = generateAccessToken({ id: existingUser._id, role: existingUser.role });
+  const accessToken = generateAccessToken({
+    id: existingUser._id,
+    role: existingUser.role,
+  });
   const newRefreshToken = generateRefreshToken({ id: existingUser._id });
 
   // Atomic: pull old token + push new one in a single pipeline update
-  await User.findByIdAndUpdate(
-    existingUser._id,
-    [
-      {
-        $set: {
-          refreshTokens: {
-            $slice: [
-              {
-                $concatArrays: [
-                  {
-                    $filter: {
-                      input: "$refreshTokens",
-                      as: "t",
-                      cond: { $ne: ["$$t.token", token] },
-                    },
+  await User.findByIdAndUpdate(existingUser._id, [
+    {
+      $set: {
+        refreshTokens: {
+          $slice: [
+            {
+              $concatArrays: [
+                {
+                  $filter: {
+                    input: "$refreshTokens",
+                    as: "t",
+                    cond: { $ne: ["$$t.token", token] },
                   },
-                  [{ token: newRefreshToken, device: req.headers["user-agent"] || "unknown", createdAt: new Date() }],
+                },
+                [
+                  {
+                    token: newRefreshToken,
+                    device: req.headers["user-agent"] || "unknown",
+                    createdAt: new Date(),
+                  },
                 ],
-              },
-              -5,
-            ],
-          },
+              ],
+            },
+            -5,
+          ],
         },
       },
-    ]
-  );
+    },
+  ]);
 
   // Set new refreshToken in HttpOnly cookie
   res.cookie("refreshToken", newRefreshToken, {
