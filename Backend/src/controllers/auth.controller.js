@@ -612,26 +612,49 @@ export const linkProvider = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const refreshToken = asyncHandler(async (req, res) => {
+  // Cookie se token lo
   const token = req.cookies?.refreshToken || req.body?.refreshToken;
-  if (!token) throw new ApiError(401, "Refresh token required");
 
-  const decoded = verifyRefreshToken(token);
+  if (!token) {
+    throw new ApiError(401, 'Refresh token required');
+  }
+
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(token);
+  } catch {
+    throw new ApiError(401, 'Invalid or expired refresh token');
+  }
+
   const user = await User.findById(decoded.id);
-  if (!user) throw new ApiError(401, "User not found");
+  if (!user) throw new ApiError(401, 'User not found');
 
+  // Check if this refresh token is still in the DB
   const isValid = user.refreshTokens.some((t) => t.token === token);
-  if (!isValid) throw new ApiError(401, "Invalid or expired refresh token");
+  if (!isValid) throw new ApiError(401, 'Refresh token revoked');
 
   // Rotate: remove old, issue new
   user.refreshTokens = user.refreshTokens.filter((t) => t.token !== token);
-  const { accessToken, refreshToken: newRefresh } = await issueTokensAndSave(
-    user,
-    req.headers["user-agent"],
-  );
 
-  res
-    .cookie("refreshToken", newRefresh, COOKIE_OPTIONS)
-    .json(new ApiResponse(200, { accessToken }, "Token refreshed"));
+  const accessToken    = generateAccessToken({ id: user._id, role: user.role });
+  const newRefreshToken = generateRefreshToken({ id: user._id });
+
+  user.refreshTokens.push({
+    token:     newRefreshToken,
+    device:    req.headers['user-agent'] || 'unknown',
+    createdAt: new Date(),
+  });
+  await user.save();
+
+  // Set new refreshToken in HttpOnly cookie
+  res.cookie('refreshToken', newRefreshToken, {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days
+  });
+
+  res.json(new ApiResponse(200, { accessToken }, 'Token refreshed'));
 });
 
 export const logout = asyncHandler(async (req, res) => {
