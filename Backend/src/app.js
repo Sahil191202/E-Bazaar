@@ -15,6 +15,7 @@ import { globalRateLimiter } from "./middlewares/rateLimit.middleware.js";
 import { compressionMiddleware } from "./utils/responseOptimizer.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import logger from "./utils/logger.js";
+import cookieParser from 'cookie-parser';
 
 // Routes
 import authRoutes from "./routes/v1/auth.routes.js";
@@ -36,6 +37,7 @@ import uploadRoutes from "./routes/v1/upload.routes.js";
 validateEnv();
 
 const app = express();
+app.use(cookieParser());
 
 // ── Security ──────────────────────────────────────────────────────────────────
 app.set("trust proxy", 1); // Trust Nginx reverse proxy

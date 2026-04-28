@@ -18,8 +18,9 @@ const EMAIL_OTP_MAX_TRIES = 5;
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 7 din se 30 din — refresh token ke saath match karo
+  path: "/", // ← YE ADD KARO — sabhi paths pe cookie bhejo
 };
 
 const generateOTP = (length = 6) => {
