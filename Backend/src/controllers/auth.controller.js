@@ -33,20 +33,22 @@ const generateOTP = (length = 6) => {
 
 // ─── Shared helper: issue JWT pair and persist refresh token ─────────────────
 const issueTokensAndSave = async (user, userAgent) => {
-  const accessToken = generateAccessToken({ id: user._id, role: user.role });
+  const accessToken  = generateAccessToken({ id: user._id, role: user.role });
   const refreshToken = generateRefreshToken({ id: user._id });
 
-  // Keep max 5 active sessions per user (sliding window)
-  if (user.refreshTokens.length >= 5) {
-    user.refreshTokens.shift(); // remove oldest
-  }
-  user.refreshTokens.push({
-    token: refreshToken,
-    device: userAgent || "unknown",
-    createdAt: new Date(),
-  });
-  user.lastLogin = new Date();
-  await user.save();
+  // Atomic update — no VersionError on concurrent saves
+  await User.findByIdAndUpdate(
+    user._id,
+    {
+      $push: {
+        refreshTokens: {
+          $each: [{ token: refreshToken, device: userAgent || "unknown", createdAt: new Date() }],
+          $slice: -5, // max 5 sessions, keep newest
+        },
+      },
+      $set: { lastLogin: new Date() },
+    }
+  );
 
   return { accessToken, refreshToken };
 };
@@ -631,25 +633,47 @@ export const refreshToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid or expired refresh token");
   }
 
-  const user = await User.findById(decoded.id);
-  if (!user) throw new ApiError(401, "User not found");
+  // Verify token exists in DB — atomic check
+  const existingUser = await User.findOne({
+    _id: decoded.id,
+    "refreshTokens.token": token,
+  }).select("_id role refreshTokens");
 
-  // Check if this refresh token is still in the DB
-  const isValid = user.refreshTokens.some((t) => t.token === token);
-  if (!isValid) throw new ApiError(401, "Refresh token revoked");
+  if (!existingUser) {
+    throw new ApiError(401, "Refresh token revoked or user not found");
+  }
 
-  // Rotate: remove old, issue new
-  user.refreshTokens = user.refreshTokens.filter((t) => t.token !== token);
+  // Generate new tokens
+  const accessToken    = generateAccessToken({ id: existingUser._id, role: existingUser.role });
+  const newRefreshToken = generateRefreshToken({ id: existingUser._id });
 
-  const accessToken = generateAccessToken({ id: user._id, role: user.role });
-  const newRefreshToken = generateRefreshToken({ id: user._id });
-
-  user.refreshTokens.push({
-    token: newRefreshToken,
-    device: req.headers["user-agent"] || "unknown",
-    createdAt: new Date(),
-  });
-  await user.save();
+  // Atomic: pull old token + push new one in a single pipeline update
+  await User.findByIdAndUpdate(
+    existingUser._id,
+    [
+      {
+        $set: {
+          refreshTokens: {
+            $slice: [
+              {
+                $concatArrays: [
+                  {
+                    $filter: {
+                      input: "$refreshTokens",
+                      as: "t",
+                      cond: { $ne: ["$$t.token", token] },
+                    },
+                  },
+                  [{ token: newRefreshToken, device: req.headers["user-agent"] || "unknown", createdAt: new Date() }],
+                ],
+              },
+              -5,
+            ],
+          },
+        },
+      },
+    ]
+  );
 
   // Set new refreshToken in HttpOnly cookie
   res.cookie("refreshToken", newRefreshToken, {
