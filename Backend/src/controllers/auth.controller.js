@@ -657,6 +657,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: "/",
   });
 
   res.json(new ApiResponse(200, { accessToken }, "Token refreshed"));
@@ -675,7 +676,7 @@ export const logout = asyncHandler(async (req, res) => {
   await delCache(`user:${req.user._id}`);
 
   res
-    .clearCookie("refreshToken")
+    .clearCookie("refreshToken", { path: "/" })
     .json(new ApiResponse(200, null, "Logged out successfully"));
 });
 
