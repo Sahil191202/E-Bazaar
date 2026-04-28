@@ -4,26 +4,27 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-}                              from '../utils/generateToken.js';
-import { ApiResponse }         from '../utils/ApiResponse.js';
-import { ApiError }            from '../utils/ApiError.js';
-import { asyncHandler }        from '../utils/asyncHandler.js';
-import { getCache, setCache, delCache, getRedis } from '../config/redis.js';
-import { EmailService } from '../services/email.service.js';
+} from "../utils/generateToken.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { getCache, setCache, delCache, getRedis } from "../config/redis.js";
+import { EmailService } from "../services/email.service.js";
 
-const EMAIL_OTP_TTL       = 300;  // 5 minutes
+const EMAIL_OTP_TTL = 300; // 5 minutes
 const EMAIL_OTP_MAX_TRIES = 5;
 
 // ─── Cookie config ────────────────────────────────────────────────────────────
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 7 din se 30 din — refresh token ke saath match karo
+  path: "/", // ← YE ADD KARO — sabhi paths pe cookie bhejo
 };
 
 const generateOTP = (length = 6) => {
-  let otp = '';
+  let otp = "";
   for (let i = 0; i < length; i++) {
     otp += Math.floor(Math.random() * 10).toString();
   }
@@ -35,19 +36,30 @@ const issueTokensAndSave = async (user, userAgent) => {
   const accessToken = generateAccessToken({ id: user._id, role: user.role });
   const refreshToken = generateRefreshToken({ id: user._id });
 
-  // Keep max 5 active sessions per user (sliding window)
-  if (user.refreshTokens.length >= 5) {
-    user.refreshTokens.shift(); // remove oldest
-  }
-  user.refreshTokens.push({
-    token: refreshToken,
-    device: userAgent || "unknown",
-    createdAt: new Date(),
+  // Atomic update — no VersionError on concurrent saves
+  await User.findByIdAndUpdate(user._id, {
+    $push: {
+      refreshTokens: {
+        $each: [
+          {
+            token: refreshToken,
+            device: userAgent || "unknown",
+            createdAt: new Date(),
+          },
+        ],
+        $slice: -5, // max 5 sessions, keep newest
+      },
+    },
+    $set: { lastLogin: new Date() },
   });
-  user.lastLogin = new Date();
-  await user.save();
 
   return { accessToken, refreshToken };
+};
+
+const normalizeProvider = (p) => {
+  if (p === "google.com") return "google";
+  if (p === "apple.com") return "apple";
+  return p;
 };
 
 // ─── Shared helper: find or create user from Firebase payload ────────────────
@@ -58,10 +70,10 @@ const findOrCreateUser = async (firebasePayload, extraData = {}) => {
     email,
     name,
     picture,
-    provider,
     isPhoneVerified,
     isEmailVerified,
   } = firebasePayload;
+  const provider = normalizeProvider(firebasePayload.provider);
 
   // 1. Try to find by Firebase UID first (fastest path)
   let user = await User.findOne({ firebaseUid: uid });
@@ -74,6 +86,9 @@ const findOrCreateUser = async (firebasePayload, extraData = {}) => {
   if (user) {
     // Link Firebase UID to existing account
     user.firebaseUid = uid;
+    user.authProviders = user.authProviders.filter(
+      (p) => p.provider !== "google.com" && p.provider !== "apple.com",
+    );
     if (!user.authProviders.some((p) => p.provider === provider)) {
       user.authProviders.push({ provider, providerId: uid });
     }
@@ -115,34 +130,43 @@ const findOrCreateUser = async (firebasePayload, extraData = {}) => {
  */
 export const sendEmailOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  if (!email) throw new ApiError(400, 'Email is required');
+  if (!email) throw new ApiError(400, "Email is required");
 
   const normalizedEmail = email.toLowerCase().trim();
-  const redis           = getRedis();
+  const redis = getRedis();
 
   // Rate limit: same email pe 1 min mein ek hi OTP
   const cooldownKey = `email_otp_cooldown:${normalizedEmail}`;
-  const onCooldown  = await redis.get(cooldownKey);
+  const onCooldown = await redis.get(cooldownKey);
   if (onCooldown) {
-    throw new ApiError(429, 'Please wait 60 seconds before requesting a new OTP');
+    throw new ApiError(
+      429,
+      "Please wait 60 seconds before requesting a new OTP",
+    );
   }
 
   const otp = generateOTP(6);
 
   // OTP store in Redis (hashed nahin — fast verify, short TTL sufficient)
-  await redis.setEx(`email_otp:${normalizedEmail}`,          EMAIL_OTP_TTL, otp);
-  await redis.setEx(`email_otp_attempts:${normalizedEmail}`, EMAIL_OTP_TTL, '0');
-  await redis.setEx(cooldownKey,                             60,             '1');
+  await redis.setEx(`email_otp:${normalizedEmail}`, EMAIL_OTP_TTL, otp);
+  await redis.setEx(
+    `email_otp_attempts:${normalizedEmail}`,
+    EMAIL_OTP_TTL,
+    "0",
+  );
+  await redis.setEx(cooldownKey, 60, "1");
 
   await EmailService.sendEmailOTP(normalizedEmail, otp);
 
   // Dev mein OTP log karo
-  if (process.env.NODE_ENV !== 'production') {
-    const logger = (await import('../utils/logger.js')).default;
+  if (process.env.NODE_ENV !== "production") {
+    const logger = (await import("../utils/logger.js")).default;
     logger.info(`[EMAIL OTP DEV] ${normalizedEmail} → ${otp}`);
   }
 
-  res.json(new ApiResponse(200, { email: normalizedEmail }, 'OTP sent to your email'));
+  res.json(
+    new ApiResponse(200, { email: normalizedEmail }, "OTP sent to your email"),
+  );
 });
 
 /**
@@ -154,29 +178,38 @@ export const sendEmailOTP = asyncHandler(async (req, res) => {
  */
 export const verifyEmailOTP = asyncHandler(async (req, res) => {
   const { email, otp, name } = req.body;
-  if (!email || !otp) throw new ApiError(400, 'Email and OTP are required');
+  if (!email || !otp) throw new ApiError(400, "Email and OTP are required");
 
   const normalizedEmail = email.toLowerCase().trim();
-  const redis           = getRedis();
+  const redis = getRedis();
 
   // Attempt count check
   const attemptsKey = `email_otp_attempts:${normalizedEmail}`;
-  const attempts    = parseInt(await redis.get(attemptsKey) || '0');
+  const attempts = parseInt((await redis.get(attemptsKey)) || "0");
 
   if (attempts >= EMAIL_OTP_MAX_TRIES) {
-    throw new ApiError(429, 'Too many failed attempts. Please request a new OTP.');
+    throw new ApiError(
+      429,
+      "Too many failed attempts. Please request a new OTP.",
+    );
   }
 
   const storedOtp = await redis.get(`email_otp:${normalizedEmail}`);
 
   if (!storedOtp) {
-    throw new ApiError(400, 'OTP expired or not found. Please request a new OTP.');
+    throw new ApiError(
+      400,
+      "OTP expired or not found. Please request a new OTP.",
+    );
   }
 
   if (storedOtp !== otp.toString().trim()) {
     await redis.setEx(attemptsKey, EMAIL_OTP_TTL, attempts + 1);
     const remaining = EMAIL_OTP_MAX_TRIES - attempts - 1;
-    throw new ApiError(400, `Invalid OTP. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`);
+    throw new ApiError(
+      400,
+      `Invalid OTP. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+    );
   }
 
   // OTP sahi hai — Redis se saaf karo
@@ -185,24 +218,30 @@ export const verifyEmailOTP = asyncHandler(async (req, res) => {
   await redis.del(`email_otp_cooldown:${normalizedEmail}`);
 
   // User dhundo ya banao
-  let user   = await User.findOne({ email: normalizedEmail });
-  let isNew  = false;
+  let user = await User.findOne({ email: normalizedEmail });
+  let isNew = false;
 
   if (!user) {
     // Naya user — name optional; agar nahi diya toh baad mein profile complete kare
     if (!name?.trim()) {
       // Profile incomplete flag return karo
-      return res.status(200).json(new ApiResponse(200, {
-        requiresProfile: true,
-        email:           normalizedEmail,
-      }, 'Email verified. Please complete your profile.'));
+      return res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            requiresProfile: true,
+            email: normalizedEmail,
+          },
+          "Email verified. Please complete your profile.",
+        ),
+      );
     }
 
-    user  = await User.create({
-      name:            name.trim(),
-      email:           normalizedEmail,
+    user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
       isEmailVerified: true,
-      authProviders:   [{ provider: 'email', providerId: normalizedEmail }],
+      authProviders: [{ provider: "email", providerId: normalizedEmail }],
     });
     isNew = true;
 
@@ -215,21 +254,35 @@ export const verifyEmailOTP = asyncHandler(async (req, res) => {
       await user.save();
     }
     // authProvider link karo agar nahi hai
-    if (!user.authProviders.some((p) => p.provider === 'email_otp')) {
-      user.authProviders.push({ provider: 'email', providerId: normalizedEmail });
+    if (
+      !user.authProviders.some(
+        (p) => p.provider === "email" && p.providerId === normalizedEmail,
+      )
+    ) {
+      user.authProviders.push({
+        provider: "email",
+        providerId: normalizedEmail,
+      });
       await user.save();
     }
   }
 
-  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+  const { accessToken, refreshToken } = await issueTokensAndSave(
+    user,
+    req.headers["user-agent"],
+  );
 
-  res
-    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-    .json(new ApiResponse(200, {
-      user:      user.toSafeObject(),
-      accessToken,
-      isNewUser: isNew,
-    }, isNew ? 'Account created successfully' : 'Login successful'));
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS).json(
+    new ApiResponse(
+      200,
+      {
+        user: user.toSafeObject(),
+        accessToken,
+        isNewUser: isNew,
+      },
+      isNew ? "Account created successfully" : "Login successful",
+    ),
+  );
 });
 
 /**
@@ -240,47 +293,55 @@ export const verifyEmailOTP = asyncHandler(async (req, res) => {
  */
 export const completeEmailProfile = asyncHandler(async (req, res) => {
   const { email, name } = req.body;
-  if (!email || !name?.trim()) throw new ApiError(400, 'Email and name are required');
+  if (!email || !name?.trim())
+    throw new ApiError(400, "Email and name are required");
 
   const normalizedEmail = email.toLowerCase().trim();
 
   // Dobara OTP verify nahi — email already verified hai is session mein
   // Lekin check karo ki koi OTP verified session hai Redis mein
-  const redis        = getRedis();
-  const sessionKey   = `email_verified_session:${normalizedEmail}`;
+  const redis = getRedis();
+  const sessionKey = `email_verified_session:${normalizedEmail}`;
   const sessionValid = await redis.get(sessionKey);
 
   // Security: agar OTP fresh verify hua tha toh Redis mein session hoga
   // (Optional: agar skip karna ho toh ye block hata sakte ho)
   // if (!sessionValid) throw new ApiError(401, 'Session expired. Please verify OTP again.');
 
-  let user  = await User.findOne({ email: normalizedEmail });
+  let user = await User.findOne({ email: normalizedEmail });
   let isNew = false;
 
   if (!user) {
-    user  = await User.create({
-      name:            name.trim(),
-      email:           normalizedEmail,
+    user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
       isEmailVerified: true,
-      authProviders:   [{ provider: 'email', providerId: normalizedEmail }],
+      authProviders: [{ provider: "email", providerId: normalizedEmail }],
     });
     isNew = true;
     await EmailService.sendWelcome(user).catch(() => {});
-  } else if (!user.name || user.name === 'User') {
+  } else if (!user.name || user.name === "User") {
     user.name = name.trim();
     await user.save();
   }
 
   await redis.del(sessionKey);
 
-  const { accessToken, refreshToken } = await issueTokensAndSave(user, req.headers['user-agent']);
+  const { accessToken, refreshToken } = await issueTokensAndSave(
+    user,
+    req.headers["user-agent"],
+  );
 
-  res
-    .cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-    .json(new ApiResponse(201, {
-      user: user.toSafeObject(),
-      accessToken,
-    }, 'Profile completed successfully'));
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS).json(
+    new ApiResponse(
+      201,
+      {
+        user: user.toSafeObject(),
+        accessToken,
+      },
+      "Profile completed successfully",
+    ),
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -570,26 +631,78 @@ export const linkProvider = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const refreshToken = asyncHandler(async (req, res) => {
+  // Cookie se token lo
   const token = req.cookies?.refreshToken || req.body?.refreshToken;
-  if (!token) throw new ApiError(401, "Refresh token required");
 
-  const decoded = verifyRefreshToken(token);
-  const user = await User.findById(decoded.id);
-  if (!user) throw new ApiError(401, "User not found");
+  if (!token) {
+    throw new ApiError(401, "Refresh token required");
+  }
 
-  const isValid = user.refreshTokens.some((t) => t.token === token);
-  if (!isValid) throw new ApiError(401, "Invalid or expired refresh token");
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(token);
+  } catch {
+    throw new ApiError(401, "Invalid or expired refresh token");
+  }
 
-  // Rotate: remove old, issue new
-  user.refreshTokens = user.refreshTokens.filter((t) => t.token !== token);
-  const { accessToken, refreshToken: newRefresh } = await issueTokensAndSave(
-    user,
-    req.headers["user-agent"],
-  );
+  // Verify token exists in DB — atomic check
+  const existingUser = await User.findOne({
+    _id: decoded.id,
+    "refreshTokens.token": token,
+  }).select("_id role refreshTokens");
 
-  res
-    .cookie("refreshToken", newRefresh, COOKIE_OPTIONS)
-    .json(new ApiResponse(200, { accessToken }, "Token refreshed"));
+  if (!existingUser) {
+    throw new ApiError(401, "Refresh token revoked or user not found");
+  }
+
+  // Generate new tokens
+  const accessToken = generateAccessToken({
+    id: existingUser._id,
+    role: existingUser.role,
+  });
+  const newRefreshToken = generateRefreshToken({ id: existingUser._id });
+
+  // Atomic: pull old token + push new one in a single pipeline update
+  await User.findByIdAndUpdate(existingUser._id, [
+    {
+      $set: {
+        refreshTokens: {
+          $slice: [
+            {
+              $concatArrays: [
+                {
+                  $filter: {
+                    input: "$refreshTokens",
+                    as: "t",
+                    cond: { $ne: ["$$t.token", token] },
+                  },
+                },
+                [
+                  {
+                    token: newRefreshToken,
+                    device: req.headers["user-agent"] || "unknown",
+                    createdAt: new Date(),
+                  },
+                ],
+              ],
+            },
+            -5,
+          ],
+        },
+      },
+    },
+  ]);
+
+  // Set new refreshToken in HttpOnly cookie
+  res.cookie("refreshToken", newRefreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: "/",
+  });
+
+  res.json(new ApiResponse(200, { accessToken }, "Token refreshed"));
 });
 
 export const logout = asyncHandler(async (req, res) => {
@@ -605,7 +718,7 @@ export const logout = asyncHandler(async (req, res) => {
   await delCache(`user:${req.user._id}`);
 
   res
-    .clearCookie("refreshToken")
+    .clearCookie("refreshToken", { path: "/" })
     .json(new ApiResponse(200, null, "Logged out successfully"));
 });
 

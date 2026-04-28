@@ -16,6 +16,7 @@ export const helmetConfig = helmet({
       objectSrc:   ["'none'"],
     },
   },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   crossOriginResourcePolicy:   { policy: 'cross-origin' },
   crossOriginEmbedderPolicy:   false,
   hsts: {

@@ -23,7 +23,7 @@ export const bankDetailsSchema = Joi.object({
   ifscCode:          Joi.string().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).required()
     .messages({ 'string.pattern.base': 'Invalid IFSC code' }),
   bankName:          Joi.string().required(),
-  branchName:        Joi.string().optional(),
+  branchName:        Joi.string().optional().allow(''),
 });
 
 export const createCouponSchema = Joi.object({

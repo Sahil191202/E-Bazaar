@@ -33,34 +33,34 @@ router.get('/store/:slug', Vendor.getPublicStorePage);
 router.use(authenticate);
 
 // Onboarding (any authenticated user can register as vendor)
-router.post('/register', validateBody(registerVendorSchema), Vendor.registerVendor);
+router.post('/register',   validateBody(registerVendorSchema), Vendor.registerVendor);
 
 // Profile (vendor only from here)
-router.get('/profile',    authorize('vendor'), Vendor.getVendorProfile);
-router.put('/profile',    authorize('vendor'), storeUpload, Vendor.updateVendorProfile);
+router.get('/profile',     authorize('vendor', 'admin'), Vendor.getVendorProfile);
+router.put('/profile',     authorize('vendor', 'admin'), storeUpload, Vendor.updateVendorProfile);
 
 // KYC
-router.post('/kyc',          authorize('vendor'), kycUpload, Vendor.submitKYC);
-router.put('/bank-details',  authorize('vendor'), validateBody(bankDetailsSchema), Vendor.updateBankDetails);
+router.post('/kyc',         authorize('vendor', 'admin'), kycUpload, Vendor.submitKYC);
+router.put('/bank-details', authorize('vendor', 'admin'), validateBody(bankDetailsSchema), Vendor.updateBankDetails);
 
 // Dashboard & Analytics
-router.get('/dashboard',         authorize('vendor'), Vendor.getDashboard);
-router.get('/analytics/sales',   authorize('vendor'), Vendor.getSalesAnalytics);
+router.get('/dashboard',         authorize('vendor', 'admin'), Vendor.getDashboard);
+router.get('/analytics/sales',   authorize('vendor', 'admin'), Vendor.getSalesAnalytics);
 
 // Payouts
-router.get('/payouts',           authorize('vendor'), Vendor.getPayouts);
-router.post('/payouts/request',  authorize('vendor'), validateBody(payoutRequestSchema), Vendor.requestPayout);
+router.get('/payouts',           authorize('vendor', 'admin'), Vendor.getPayouts);
+router.post('/payouts/request',  authorize('vendor', 'admin'), validateBody(payoutRequestSchema), Vendor.requestPayout);
 
 // Coupons
-router.get('/coupons',               authorize('vendor'), Vendor.getVendorCoupons);
-router.post('/coupons',              authorize('vendor'), validateBody(createCouponSchema), Vendor.createCoupon);
-router.put('/coupons/:id',           authorize('vendor'), Vendor.updateCoupon);
-router.delete('/coupons/:id',        authorize('vendor'), Vendor.deleteCoupon);
-router.get('/coupons/:id/usage',     authorize('vendor'), Vendor.getCouponUsage);
+router.get('/coupons',               authorize('vendor', 'admin'), Vendor.getVendorCoupons);
+router.post('/coupons',              authorize('vendor', 'admin'), validateBody(createCouponSchema), Vendor.createCoupon);
+router.put('/coupons/:id',           authorize('vendor', 'admin'), Vendor.updateCoupon);
+router.delete('/coupons/:id',        authorize('vendor', 'admin'), Vendor.deleteCoupon);
+router.get('/coupons/:id/usage',     authorize('vendor', 'admin'), Vendor.getCouponUsage);
 
 // Shipping docs
-router.get('/orders/:orderId/shipping-label',  authorize('vendor'), Vendor.generateShippingLabel);
-router.get('/orders/:orderId/packaging-slip',  authorize('vendor'), Vendor.generatePackagingSlip);
+router.get('/orders/:orderId/shipping-label',  authorize('vendor', 'admin'), Vendor.generateShippingLabel);
+router.get('/orders/:orderId/packaging-slip',  authorize('vendor', 'admin'), Vendor.generatePackagingSlip);
 
 // ── Admin routes ──────────────────────────────────────────────────────────────
 router.get('/admin/kyc',               authorize('admin'), Vendor.adminGetPendingKYC);
