@@ -95,6 +95,13 @@ const productSchema = new mongoose.Schema({
   isFreeShipping: { type: Boolean, default: false },
   shippingCharge: { type: Number, default: 0 },
 
+  // Custom fields (defined per category by admin)
+  customFields: {
+    type: Map,
+    of:   mongoose.Schema.Types.Mixed,
+    default: {},
+  },
+
   // SEO
   metaTitle:       String,
   metaDescription: String,
