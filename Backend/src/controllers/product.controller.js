@@ -15,6 +15,7 @@ import {
 import { parseCSV, parseExcel } from "../utils/bulkUpload.js";
 import fs from "fs";
 import mongoose from "mongoose";
+import { CategoryFieldService } from "../services/categoryField.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CREATE PRODUCT (Vendor)
@@ -94,6 +95,34 @@ export const createProduct = asyncHandler(async (req, res) => {
       `SKU already exists: ${skuConflict.variants.find((v) => skus.includes(v.sku))?.sku}`,
     );
 
+  let validatedCustomFields = {};
+  const rawCustomFields = req.body.customFields
+    ? typeof req.body.customFields === "string"
+      ? JSON.parse(req.body.customFields)
+      : req.body.customFields
+    : {};
+
+  if (rawCustomFields && Object.keys(rawCustomFields).length) {
+    const fieldDefs = await CategoryFieldService.getFieldsForCategory(
+      categoryId,
+      category.ancestors,
+    );
+    validatedCustomFields = CategoryFieldService.validateCustomFields(
+      rawCustomFields,
+      fieldDefs,
+    );
+  } else {
+    // Even if vendor sent no custom fields, check if any are required
+    const fieldDefs = await CategoryFieldService.getFieldsForCategory(
+      categoryId,
+      category.ancestors,
+    );
+    const requiredFields = fieldDefs.filter((f) => f.isRequired);
+    if (requiredFields.length) {
+      CategoryFieldService.validateCustomFields({}, fieldDefs); // Will throw if required fields missing
+    }
+  }
+
   const product = await Product.create({
     name,
     description,
@@ -107,9 +136,10 @@ export const createProduct = asyncHandler(async (req, res) => {
     variants: parsedVariants,
     isFreeShipping,
     shippingCharge,
+    customFields: validatedCustomFields, // ← ADD THIS
     metaTitle,
     metaDescription,
-    status: "pending_approval", // Goes to admin for approval
+    status: "pending_approval",
   });
 
   await delCachePattern("products:*");
@@ -285,6 +315,28 @@ export const updateProduct = asyncHandler(async (req, res) => {
     metaDescription,
   } = req.body;
 
+  if (req.body.customFields) {
+    const rawCustomFields =
+      typeof req.body.customFields === "string"
+        ? JSON.parse(req.body.customFields)
+        : req.body.customFields;
+
+    const cat = await Category.findById(product.category).lean();
+    if (cat) {
+      const fieldDefs = await CategoryFieldService.getFieldsForCategory(
+        product.category,
+        cat.ancestors,
+      );
+      // Merge existing custom fields with new values (patch semantics)
+      const existing = Object.fromEntries(product.customFields || new Map());
+      const merged = { ...existing, ...rawCustomFields };
+      product.customFields = CategoryFieldService.validateCustomFields(
+        merged,
+        fieldDefs,
+      );
+    }
+  }
+  
   if (name) product.name = name;
   if (description) product.description = description;
   if (shortDesc) product.shortDesc = shortDesc;
