@@ -56,6 +56,12 @@ const issueTokensAndSave = async (user, userAgent) => {
   return { accessToken, refreshToken };
 };
 
+const normalizeProvider = (p) => {
+  if (p === "google.com") return "google";
+  if (p === "apple.com") return "apple";
+  return p;
+};
+
 // ─── Shared helper: find or create user from Firebase payload ────────────────
 const findOrCreateUser = async (firebasePayload, extraData = {}) => {
   const {
@@ -64,10 +70,10 @@ const findOrCreateUser = async (firebasePayload, extraData = {}) => {
     email,
     name,
     picture,
-    provider,
     isPhoneVerified,
     isEmailVerified,
   } = firebasePayload;
+  const provider = normalizeProvider(firebasePayload.provider);
 
   // 1. Try to find by Firebase UID first (fastest path)
   let user = await User.findOne({ firebaseUid: uid });
@@ -80,6 +86,9 @@ const findOrCreateUser = async (firebasePayload, extraData = {}) => {
   if (user) {
     // Link Firebase UID to existing account
     user.firebaseUid = uid;
+    user.authProviders = user.authProviders.filter(
+      (p) => p.provider !== "google.com" && p.provider !== "apple.com",
+    );
     if (!user.authProviders.some((p) => p.provider === provider)) {
       user.authProviders.push({ provider, providerId: uid });
     }
