@@ -1,5 +1,5 @@
-import nodemailer from 'nodemailer';
-import logger     from '../utils/logger.js';
+import nodemailer from "nodemailer";
+import logger from "../utils/logger.js";
 
 let transporter;
 
@@ -7,29 +7,34 @@ const getTransporter = () => {
   if (transporter) return transporter;
 
   transporter = nodemailer.createTransport({
-    host:   process.env.SMTP_HOST,
-    port:   Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_PORT === '465',
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    family: 4,
+    secure: process.env.SMTP_PORT === "465",
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    pool:            true,
-    maxConnections:  5,
-    maxMessages:     100,
+    tls: {
+      rejectUnauthorized: false,
+    },
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
   });
 
   return transporter;
 };
 
 export class EmailService {
-
   static async send({ to, subject, html, text }) {
     try {
       const info = await getTransporter().sendMail({
-        from:    `"${process.env.APP_NAME || 'eCommerce'}" <${process.env.SMTP_USER}>`,
-        to, subject, html,
-        text: text || html.replace(/<[^>]*>/g, ''),
+        from: `"${process.env.APP_NAME || "eCommerce"}" <${process.env.SMTP_USER}>`,
+        to,
+        subject,
+        html,
+        text: text || html.replace(/<[^>]*>/g, ""),
       });
       logger.info(`Email sent to ${to}: ${info.messageId}`);
       return info;
@@ -41,11 +46,14 @@ export class EmailService {
 
   static async sendOrderConfirmation(user, order) {
     const itemsHtml = order.items
-      .map((i) => `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₹${i.price}</td></tr>`)
-      .join('');
+      .map(
+        (i) =>
+          `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₹${i.price}</td></tr>`,
+      )
+      .join("");
 
     await this.send({
-      to:      user.email,
+      to: user.email,
       subject: `Order Confirmed — ${order.orderId}`,
       html: `
         <h2>Hi ${user.name}, your order is confirmed! 🎉</h2>
@@ -62,16 +70,16 @@ export class EmailService {
 
   static async sendWelcome(user) {
     await this.send({
-      to:      user.email,
-      subject: 'Welcome to eCommerce! 🎉',
-      html:    `<h2>Hi ${user.name}!</h2><p>Welcome to our platform. Happy shopping!</p>`,
+      to: user.email,
+      subject: "Welcome to eCommerce! 🎉",
+      html: `<h2>Hi ${user.name}!</h2><p>Welcome to our platform. Happy shopping!</p>`,
     });
   }
 
   static async sendPasswordReset(user, resetLink) {
     await this.send({
-      to:      user.email,
-      subject: 'Reset your password',
+      to: user.email,
+      subject: "Reset your password",
       html: `
         <h2>Password Reset Request</h2>
         <p>Click the link below to reset your password. Valid for 1 hour.</p>
@@ -83,11 +91,11 @@ export class EmailService {
 
   // email.service.js — existing class mein add karo
 
-static async sendEmailOTP(email, otp) {
-  await this.send({
-    to:      email,
-    subject: `Your OTP is ${otp} — valid for 10 minutes`,
-    html: `
+  static async sendEmailOTP(email, otp) {
+    await this.send({
+      to: email,
+      subject: `Your OTP is ${otp} — valid for 10 minutes`,
+      html: `
       <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
         <h2 style="color:#111">Your verification code</h2>
         <p style="color:#555">Use the OTP below to verify your email. It expires in <strong>10 minutes</strong>.</p>
@@ -98,6 +106,6 @@ static async sendEmailOTP(email, otp) {
         <p style="color:#999;font-size:13px">If you didn't request this, please ignore this email.</p>
       </div>
     `,
-  });
-}
+    });
+  }
 }

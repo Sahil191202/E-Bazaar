@@ -204,7 +204,7 @@ export const verifyEmailOTP = asyncHandler(async (req, res) => {
   }
 
   if (storedOtp !== otp.toString().trim()) {
-    await redis.setEx(attemptsKey, EMAIL_OTP_TTL, attempts + 1);
+    await redis.setEx(attemptsKey, EMAIL_OTP_TTL, String(attempts + 1));
     const remaining = EMAIL_OTP_MAX_TRIES - attempts - 1;
     throw new ApiError(
       400,
