@@ -9,6 +9,7 @@ const router = Router();
 
 // ── Public ─────────────────────────────────────────────────────────────────────
 router.get('/',     Category.getCategoryTree);
+router.get('/all',        Category.getAllCategories);
 
 // ── Nested field routes (public GET, admin POST/PUT/DELETE — auth handled inside)
 // Mounts: /api/v1/categories/:categoryId/fields/...
@@ -16,7 +17,6 @@ router.use('/:categoryId/fields', fieldRouter);
 
 // ── Admin only ─────────────────────────────────────────────────────────────────
 router.use(authenticate, authorize('admin'));
-router.get('/all',        Category.getAllCategories);
 router.post('/',          uploadSingle, Category.createCategory);
 router.put('/:id',        Category.updateCategory);
 router.delete('/:id',     Category.deleteCategory);
