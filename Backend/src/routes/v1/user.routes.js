@@ -12,6 +12,11 @@ router.use(authenticate);
 router.get('/profile',    UserCtrl.getProfile);
 router.put('/profile',    UserCtrl.updateProfile);
 
+router.post('/profile/email/send-otp',    UserCtrl.sendEmailChangeOTP);
+router.post('/profile/email/verify-otp',  UserCtrl.verifyEmailChange);
+router.post('/profile/phone/send-otp',    UserCtrl.sendPhoneChangeOTP);
+router.post('/profile/phone/verify-otp',  UserCtrl.verifyPhoneChange);
+
 // Addresses
 router.get('/addresses',                     UserCtrl.getAddresses);
 router.post('/addresses',  validateBody(addAddressSchema), UserCtrl.addAddress);

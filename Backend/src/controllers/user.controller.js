@@ -147,3 +147,78 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   res.json(new ApiResponse(200, { user }, 'Profile updated'));
 });
+
+// ── Send OTP to new email ─────────────────────────────────────────────────────
+export const sendEmailChangeOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) throw new ApiError(400, 'Email required');
+
+  const existing = await User.findOne({ email: email.toLowerCase(), _id: { $ne: req.user.id } });
+  if (existing) throw new ApiError(409, 'Email already in use');
+
+  const otp  = Math.floor(100000 + Math.random() * 900000).toString();
+  const hash = await bcrypt.hash(otp, 10);
+
+  await redis.setEx(`email_change:${req.user.id}`, 300, JSON.stringify({ email, hash }));
+
+  // Dev: print OTP
+  logger.info(`[EMAIL CHANGE OTP DEV] ${email} → ${otp}`);
+  // Prod: await sendEmail({ to: email, subject: 'Verify new email', text: `OTP: ${otp}` });
+
+  res.json(new ApiResponse(200, {}, 'OTP sent'));
+});
+
+// ── Verify OTP and update email ───────────────────────────────────────────────
+export const verifyEmailChange = asyncHandler(async (req, res) => {
+  const { otp } = req.body;
+  const stored  = await redis.get(`email_change:${req.user.id}`);
+  if (!stored) throw new ApiError(400, 'OTP expired or not requested');
+
+  const { email, hash } = JSON.parse(stored);
+  const valid = await bcrypt.compare(otp, hash);
+  if (!valid) throw new ApiError(400, 'Invalid OTP');
+
+  await User.findByIdAndUpdate(req.user.id, {
+    email:           email.toLowerCase(),
+    isEmailVerified: true,
+  });
+  await redis.del(`email_change:${req.user.id}`);
+
+  res.json(new ApiResponse(200, {}, 'Email updated'));
+});
+
+// ── Send OTP to new phone ─────────────────────────────────────────────────────
+export const sendPhoneChangeOTP = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) throw new ApiError(400, 'Phone required');
+
+  const existing = await User.findOne({ phone, _id: { $ne: req.user.id } });
+  if (existing) throw new ApiError(409, 'Phone already in use');
+
+  const otp  = Math.floor(100000 + Math.random() * 900000).toString();
+  const hash = await bcrypt.hash(otp, 10);
+
+  await redis.setEx(`phone_change:${req.user.id}`, 300, JSON.stringify({ phone, hash }));
+  logger.info(`[PHONE CHANGE OTP DEV] ${phone} → ${otp}`);
+
+  res.json(new ApiResponse(200, {}, 'OTP sent to phone'));
+});
+
+// ── Verify OTP and update phone ───────────────────────────────────────────────
+export const verifyPhoneChange = asyncHandler(async (req, res) => {
+  const { otp } = req.body;
+  const stored  = await redis.get(`phone_change:${req.user.id}`);
+  if (!stored) throw new ApiError(400, 'OTP expired or not requested');
+
+  const { phone, hash } = JSON.parse(stored);
+  const valid = await bcrypt.compare(otp, hash);
+  if (!valid) throw new ApiError(400, 'Invalid OTP');
+
+  await User.findByIdAndUpdate(req.user.id, {
+    phone,
+    isPhoneVerified: true,
+  });
+  await redis.del(`phone_change:${req.user.id}`);
+
+  res.json(new ApiResponse(200, {}, 'Phone updated'));
+});
