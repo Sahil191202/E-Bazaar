@@ -87,9 +87,9 @@ const productSchema = new mongoose.Schema({
   rejectionReason: String,
 
   // Flags
-  isFeatured:   { type: Boolean, default: false },
-  isBestSeller: { type: Boolean, default: false },
-  isNewArrival: { type: Boolean, default: false },
+  isFeatured:   { type: Boolean, default: false, index: true },
+  isBestSeller: { type: Boolean, default: false, index: true },
+  isNewArrival: { type: Boolean, default: false, index: true },
 
   // Shipping
   isFreeShipping: { type: Boolean, default: false },

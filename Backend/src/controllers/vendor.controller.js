@@ -196,25 +196,20 @@ export const updateBankDetails = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getDashboard = asyncHandler(async (req, res) => {
-  const [vendor, summary, orderStats, topProducts] = await Promise.all([
-    Vendor.findOne({ user: req.user._id }).select(
-      "pendingPayout totalEarnings totalPaidOut totalOrders kycStatus isActive vacationMode",
-    ),
-    AnalyticsService.getVendorSummary(req.user._id),
-    AnalyticsService.getVendorOrderStats(req.user._id),
-    AnalyticsService.getVendorTopProducts(req.user._id, 5),
-  ]);
+  const vendor = await Vendor.findOne({ user: req.user._id }).select(
+    "pendingPayout totalEarnings totalPaidOut totalOrders totalProducts kycStatus isActive vacationMode",
+  );
 
   if (!vendor) throw new ApiError(404, "Vendor profile not found");
 
-  res.json(
-    new ApiResponse(200, {
-      vendor,
-      summary,
-      orderStats,
-      topProducts,
-    }),
-  );
+  // ← vendor._id use karo, req.user._id nahi
+  const [summary, orderStats, topProducts] = await Promise.all([
+    AnalyticsService.getVendorSummary(req.user._id),      // ← vendor._id nahi
+  AnalyticsService.getVendorOrderStats(req.user._id),
+  AnalyticsService.getVendorTopProducts(req.user._id, 5),
+  ]);
+
+  res.json(new ApiResponse(200, { vendor, summary, orderStats, topProducts }));
 });
 
 export const getSalesAnalytics = asyncHandler(async (req, res) => {
@@ -223,10 +218,11 @@ export const getSalesAnalytics = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Period must be daily, weekly, or monthly");
   }
 
-  const data = await AnalyticsService.getVendorSalesAnalytics(
-    req.user._id,
-    period,
-  );
+  // ← vendor._id fetch karo
+  const vendor = await Vendor.findOne({ user: req.user._id }).select("_id");
+  if (!vendor) throw new ApiError(404, "Vendor not found");
+
+  const data = await AnalyticsService.getVendorSalesAnalytics(req.user._id, period);
   res.json(new ApiResponse(200, { period, data }));
 });
 

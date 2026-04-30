@@ -181,24 +181,24 @@ export const getProducts = asyncHandler(async (req, res) => {
   }
 
   if (req.query.status && req.query.status !== "active") {
-  // Sirf admin hi non-active products dekh sakta hai
-  if (!req.user || req.user.role !== "admin") {
-    filter.status = "active"; // non-admin ko force active
+    // Sirf admin hi non-active products dekh sakta hai
+    if (!req.user || req.user.role !== "admin") {
+      filter.status = "active"; // non-admin ko force active
+    } else {
+      filter.status = req.query.status;
+    }
   } else {
-    filter.status = req.query.status;
+    filter.status = req.query.status || "active";
+
+    // Public route pe req.user nahi hoga
+    const isAdmin = req.user?.role === "admin";
+
+    if (req.query.status && isAdmin) {
+      filter.status = req.query.status;
+    } else {
+      filter.status = "active"; // public aur non-admin ke liye hamesha active
+    }
   }
-} else {
-  filter.status = req.query.status || "active";
-
-  // Public route pe req.user nahi hoga
-const isAdmin = req.user?.role === "admin";
-
-if (req.query.status && isAdmin) {
-  filter.status = req.query.status;
-} else {
-  filter.status = "active"; // public aur non-admin ke liye hamesha active
-}
-}
 
   // Full-text search
   if (q) {
@@ -234,8 +234,13 @@ if (req.query.status && isAdmin) {
   if (rating) filter["rating.average"] = { $gte: Number(rating) };
   if (inStock === "true") filter.totalStock = { $gt: 0 };
   if (isFeatured === "true") filter.isFeatured = true;
+  if (isNewArrival === "true") {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    filter.createdAt = { $gte: thirtyDaysAgo };
+    // OR use manual flag:
+    // filter.isNewArrival = true;
+  }
   if (isBestSeller === "true") filter.isBestSeller = true;
-  if (isNewArrival === "true") filter.isNewArrival = true;
 
   // ── Build sort ──────────────────────────────────────────────────────────────
   const sortMap = {
@@ -277,6 +282,21 @@ if (req.query.status && isAdmin) {
   await setCache(cacheKey, { data: result, meta }, 300); // 5 min
 
   res.json(new ApiResponse(200, result, "Products fetched", meta));
+});
+
+export const toggleProductFlag = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { isFeatured, isNewArrival, isBestSeller } = req.body;
+
+  const updates = {};
+  if (typeof isFeatured === "boolean") updates.isFeatured = isFeatured;
+  if (typeof isNewArrival === "boolean") updates.isNewArrival = isNewArrival;
+  if (typeof isBestSeller === "boolean") updates.isBestSeller = isBestSeller;
+
+  const product = await Product.findByIdAndUpdate(id, updates, { new: true });
+  if (!product) throw new ApiError(404, "Product not found");
+
+  res.json(new ApiResponse(200, { product }, "Product flags updated"));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,7 +382,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       );
     }
   }
-  
+
   if (name) product.name = name;
   if (description) product.description = description;
   if (shortDesc) product.shortDesc = shortDesc;

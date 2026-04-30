@@ -6,6 +6,10 @@ import { delCache }    from '../config/redis.js';
 import bcrypt from "bcryptjs";
 import { getRedis } from "../config/redis.js";
 import logger from '../utils/logger.js';
+import { admin } from '../config/firebase.js';
+import { cloudinary } from '../config/cloudinary.js';
+import { EmailService } from '../services/email.service.js';
+import { SmsService } from '../services/sms.service.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  GET ALL ADDRESSES
@@ -157,41 +161,60 @@ export const sendEmailChangeOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) throw new ApiError(400, 'Email required');
 
-  const existing = await User.findOne({ email: email.toLowerCase(), _id: { $ne: req.user.id } });
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: req.user.id } });
   if (existing) throw new ApiError(409, 'Email already in use');
 
   const otp  = Math.floor(100000 + Math.random() * 900000).toString();
   const hash = await bcrypt.hash(otp, 10);
 
-  await redis.setEx(`email_change:${req.user.id}`, 300, JSON.stringify({ email, hash }));
+  await redis.setEx(`email_change:${req.user.id}`, 300, JSON.stringify({ email: normalizedEmail, hash }));
 
-  // Dev: print OTP
-  logger.info(`[EMAIL CHANGE OTP DEV] ${email} → ${otp}`);
-  // Prod: await sendEmail({ to: email, subject: 'Verify new email', text: `OTP: ${otp}` });
+  if (process.env.NODE_ENV !== 'production') {
+    logger.info(`[EMAIL CHANGE OTP DEV] ${normalizedEmail} → ${otp}`);
+  }
 
-  res.json(new ApiResponse(200, {}, 'OTP sent'));
+  await EmailService.send({
+    to:      normalizedEmail,
+    subject: 'Verify your new email',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
+        <h2>Email Change Verification</h2>
+        <p>Use this OTP to verify your new email. Expires in <strong>5 minutes</strong>.</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;text-align:center;
+                    padding:16px;background:#f5f5f5;border-radius:6px;margin:20px 0">
+          ${otp}
+        </div>
+        <p style="color:#999;font-size:13px">If you didn't request this, ignore this email.</p>
+      </div>
+    `,
+  });
+
+  res.json(new ApiResponse(200, {}, 'OTP sent to new email'));
 });
 
-// ── Verify OTP and update email ───────────────────────────────────────────────
 export const verifyEmailChange = asyncHandler(async (req, res) => {
   const redis = getRedis();
-
   const { otp } = req.body;
+  if (!otp) throw new ApiError(400, 'OTP required');
 
-  const stored  = await redis.get(`email_change:${req.user.id}`);
+  const stored = await redis.get(`email_change:${req.user.id}`);
   if (!stored) throw new ApiError(400, 'OTP expired or not requested');
 
   const { email, hash } = JSON.parse(stored);
-  const valid = await bcrypt.compare(otp, hash);
+  const valid = await bcrypt.compare(otp.toString(), hash);
   if (!valid) throw new ApiError(400, 'Invalid OTP');
 
-  await User.findByIdAndUpdate(req.user.id, {
-    email:           email.toLowerCase(),
-    isEmailVerified: true,
-  });
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { email, isEmailVerified: true },
+    { new: true }
+  ).select('-password -refreshTokens');
+
   await redis.del(`email_change:${req.user.id}`);
 
-  res.json(new ApiResponse(200, {}, 'Email updated'));
+  res.json(new ApiResponse(200, { user: user.toSafeObject() }, 'Email updated successfully'));
 });
 
 // ── Send OTP to new phone ─────────────────────────────────────────────────────
@@ -210,26 +233,75 @@ export const sendPhoneChangeOTP = asyncHandler(async (req, res) => {
   await redis.setEx(`phone_change:${req.user.id}`, 300, JSON.stringify({ phone, hash }));
   logger.info(`[PHONE CHANGE OTP DEV] ${phone} → ${otp}`);
 
+  if (process.env.NODE_ENV === 'production') {
+  // await SmsService.send(phone, `Your OTP: ${otp}`);
+  throw new ApiError(500, 'SMS service not configured');
+}
+
   res.json(new ApiResponse(200, {}, 'OTP sent to phone'));
 });
 
 // ── Verify OTP and update phone ───────────────────────────────────────────────
 export const verifyPhoneChange = asyncHandler(async (req, res) => {
-  const redis = getRedis();
+  const { firebaseIdToken } = req.body;
+  if (!firebaseIdToken) throw new ApiError(400, 'Firebase ID token required');
+ 
+  // Verify token with Firebase Admin
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(firebaseIdToken);
+  } catch (err) {
+    throw new ApiError(400, `Firebase token invalid: ${err.message}`);
+  }
+ 
+  // Extract phone from Firebase token
+  const phone = decoded.phone_number?.replace('+91', '').replace(/\s/g, '');
+  if (!phone) throw new ApiError(400, 'Phone number not found in Firebase token');
+ 
+  // Check if phone already taken
+  const existing = await User.findOne({ phone, _id: { $ne: req.user.id } });
+  if (existing) throw new ApiError(409, 'Phone already in use by another account');
+ 
+  // Update user
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { phone, isPhoneVerified: true },
+    { new: true },
+  ).select('-password -refreshTokens');
+ 
+  res.json(new ApiResponse(200, { user }, 'Phone updated successfully'));
+});
 
-  const { otp } = req.body;
-  const stored  = await redis.get(`phone_change:${req.user.id}`);
-  if (!stored) throw new ApiError(400, 'OTP expired or not requested');
 
-  const { phone, hash } = JSON.parse(stored);
-  const valid = await bcrypt.compare(otp, hash);
-  if (!valid) throw new ApiError(400, 'Invalid OTP');
-
-  await User.findByIdAndUpdate(req.user.id, {
-    phone,
-    isPhoneVerified: true,
+export const updateAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, 'Image file required');
+ 
+  // Upload to Cloudinary
+  const result = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder:         'luxe/avatars',
+        transformation: [
+          { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+          { quality: 'auto', fetch_format: 'auto' },
+        ],
+        public_id: `user_${req.user.id}`,
+        overwrite:  true,
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      },
+    );
+    stream.end(req.file.buffer);
   });
-  await redis.del(`phone_change:${req.user.id}`);
-
-  res.json(new ApiResponse(200, {}, 'Phone updated'));
+ 
+  // Update user avatar URL
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { avatar: result.secure_url },
+    { new: true },
+  ).select('-password -refreshTokens');
+ 
+  res.json(new ApiResponse(200, { user, avatar: result.secure_url }, 'Avatar updated'));
 });

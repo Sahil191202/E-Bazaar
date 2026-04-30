@@ -17,7 +17,7 @@ export const syncVendorEarnings = async (order) => {
   // Bulk update each vendor's totals
   const updates = Object.entries(vendorMap).map(([vendorUserId, earning]) =>
     Vendor.findOneAndUpdate(
-      { user: vendorUserId },
+      { _id: vendorUserId },
       {
         $inc: {
           totalEarnings: earning,

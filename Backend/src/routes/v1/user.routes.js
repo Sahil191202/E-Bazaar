@@ -5,6 +5,15 @@ import { addAddressSchema, moveToCartSchema } from '../../validators/cart.valida
 import * as UserCtrl    from '../../controllers/user.controller.js';
 import * as WishCtrl    from '../../controllers/wishlist.controller.js';
 
+import multer from 'multer';
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Only images'), false);
+  },
+}).single('avatar');
+
 const router = Router();
 router.use(authenticate);
 
@@ -16,6 +25,8 @@ router.post('/profile/email/send-otp',    UserCtrl.sendEmailChangeOTP);
 router.post('/profile/email/verify-otp',  UserCtrl.verifyEmailChange);
 router.post('/profile/phone/send-otp',    UserCtrl.sendPhoneChangeOTP);
 router.post('/profile/phone/verify-otp',  UserCtrl.verifyPhoneChange);
+router.post('/profile/avatar', avatarUpload, UserCtrl.updateAvatar);
+
 
 // Addresses
 router.get('/addresses',                     UserCtrl.getAddresses);
