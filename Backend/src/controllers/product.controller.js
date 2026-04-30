@@ -240,19 +240,23 @@ export const getProducts = asyncHandler(async (req, res) => {
     // OR use manual flag:
     // filter.isNewArrival = true;
   }
-  if (isBestSeller === "true") filter.isBestSeller = true;
 
   // ── Build sort ──────────────────────────────────────────────────────────────
-  const sortMap = {
+const sortMap = {
     relevance: q ? { score: { $meta: "textScore" } } : { purchaseCount: -1 },
-    price_asc: { basePrice: 1 },
+    price_asc:  { basePrice: 1 },
     price_desc: { basePrice: -1 },
-    rating: { "rating.average": -1, "rating.count": -1 },
-    newest: { createdAt: -1 },
-    popular: { purchaseCount: -1 },
+    rating:     { "rating.average": -1, "rating.count": -1 },
+    newest:     { createdAt: -1 },
+    popular:    { purchaseCount: -1 },
   };
-  const sortObj = sortMap[sort] || sortMap.relevance;
+  let sortObj = sortMap[sort] || sortMap.relevance;
 
+  // isBestSeller — flag filter nahi, purchaseCount se sort karo
+  if (isBestSeller === "true") {
+    filter.purchaseCount = { $gte: 10 }; // Best seller hone ke liye kam se kam 10 purchases
+    sortObj = { purchaseCount: -1 };
+  }
   // ── Cache key ───────────────────────────────────────────────────────────────
   const cacheKey = `products:list:${JSON.stringify({ ...req.query, page, limit })}`;
   const cached = await getCache(cacheKey);
