@@ -204,9 +204,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   // ← vendor._id use karo, req.user._id nahi
   const [summary, orderStats, topProducts] = await Promise.all([
-    AnalyticsService.getVendorSummary(req.user._id),      // ← vendor._id nahi
-  AnalyticsService.getVendorOrderStats(req.user._id),
-  AnalyticsService.getVendorTopProducts(req.user._id, 5),
+    AnalyticsService.getVendorSummary(req.user._id), // ← vendor._id nahi
+    AnalyticsService.getVendorOrderStats(req.user._id),
+    AnalyticsService.getVendorTopProducts(req.user._id, 5),
   ]);
 
   res.json(new ApiResponse(200, { vendor, summary, orderStats, topProducts }));
@@ -222,7 +222,10 @@ export const getSalesAnalytics = asyncHandler(async (req, res) => {
   const vendor = await Vendor.findOne({ user: req.user._id }).select("_id");
   if (!vendor) throw new ApiError(404, "Vendor not found");
 
-  const data = await AnalyticsService.getVendorSalesAnalytics(req.user._id, period);
+  const data = await AnalyticsService.getVendorSalesAnalytics(
+    req.user._id,
+    period,
+  );
   res.json(new ApiResponse(200, { period, data }));
 });
 

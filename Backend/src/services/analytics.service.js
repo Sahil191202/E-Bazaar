@@ -1,10 +1,12 @@
 import { Order }  from '../models/Order.js';
 import { Product } from '../models/Product.js';
+import mongoose from 'mongoose';
 
 export class AnalyticsService {
 
   // ─── Vendor sales analytics ───────────────────────────────────────────────
   static async getVendorSalesAnalytics(vendorId, period = 'monthly') {
+    const vid = new mongoose.Types.ObjectId(vendorId);
     const now  = new Date();
     let from, groupFormat, dateLabel;
 
@@ -30,7 +32,7 @@ export class AnalyticsService {
       // Match orders with this vendor's items, confirmed/delivered
       {
         $match: {
-          'items.vendor': vendorId,
+          'items.vendor': vid,
           status:         { $in: ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'] },
           createdAt:      { $gte: from },
         },
@@ -38,7 +40,7 @@ export class AnalyticsService {
       // Unwind items to work per item
       { $unwind: '$items' },
       // Filter only this vendor's items
-      { $match: { 'items.vendor': vendorId } },
+      { $match: { 'items.vendor': vid } },
       // Group by period
       {
         $group: {
@@ -69,10 +71,11 @@ export class AnalyticsService {
 
   // ─── Vendor top products ──────────────────────────────────────────────────
   static async getVendorTopProducts(vendorId, limit = 5) {
+    const vid = new mongoose.Types.ObjectId(vendorId);
     return Order.aggregate([
-      { $match: { 'items.vendor': vendorId, status: { $ne: 'cancelled' } } },
+      { $match: { 'items.vendor': vid, status: { $ne: 'cancelled' } } },
       { $unwind: '$items' },
-      { $match: { 'items.vendor': vendorId } },
+      { $match: { 'items.vendor': vid } },
       {
         $group: {
           _id:      '$items.product',
@@ -99,10 +102,11 @@ export class AnalyticsService {
 
   // ─── Vendor order status breakdown ────────────────────────────────────────
   static async getVendorOrderStats(vendorId) {
+    const vid = new mongoose.Types.ObjectId(vendorId);
     const stats = await Order.aggregate([
-      { $match: { 'items.vendor': vendorId } },
+      { $match: { 'items.vendor': vid } },
       { $unwind: '$items' },
-      { $match: { 'items.vendor': vendorId } },
+      { $match: { 'items.vendor': vid } },
       {
         $group: {
           _id:     '$items.status',
@@ -120,18 +124,19 @@ export class AnalyticsService {
 
   // ─── Vendor summary card (for dashboard header) ───────────────────────────
   static async getVendorSummary(vendorId) {
+    const vid = new mongoose.Types.ObjectId(vendorId);
     const [today, thisMonth, allTime] = await Promise.all([
       // Today's revenue
       Order.aggregate([
         {
           $match: {
-            'items.vendor': vendorId,
+            'items.vendor': vid,
             status:         { $nin: ['cancelled', 'pending_payment'] },
             createdAt:      { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
           },
         },
         { $unwind: '$items' },
-        { $match: { 'items.vendor': vendorId } },
+        { $match: { 'items.vendor': vid } },
         { $group: { _id: null, revenue: { $sum: '$items.vendorEarning' }, orders: { $addToSet: '$_id' } } },
       ]),
 
@@ -139,7 +144,7 @@ export class AnalyticsService {
       Order.aggregate([
         {
           $match: {
-            'items.vendor': vendorId,
+            'items.vendor': vid, 
             status:         { $nin: ['cancelled', 'pending_payment'] },
             createdAt: {
               $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -147,7 +152,7 @@ export class AnalyticsService {
           },
         },
         { $unwind: '$items' },
-        { $match: { 'items.vendor': vendorId } },
+        { $match: { 'items.vendor': vid } },
         { $group: { _id: null, revenue: { $sum: '$items.vendorEarning' }, orders: { $addToSet: '$_id' } } },
       ]),
 
@@ -155,12 +160,12 @@ export class AnalyticsService {
       Order.aggregate([
         {
           $match: {
-            'items.vendor': vendorId,
+            'items.vendor': vid,
             status:         { $nin: ['cancelled', 'pending_payment'] },
           },
         },
         { $unwind: '$items' },
-        { $match: { 'items.vendor': vendorId } },
+        { $match: { 'items.vendor': vid } },
         { $group: { _id: null, revenue: { $sum: '$items.vendorEarning' }, orders: { $addToSet: '$_id' } } },
       ]),
     ]);
