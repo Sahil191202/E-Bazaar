@@ -3,6 +3,9 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { ApiError }    from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { delCache }    from '../config/redis.js';
+import bcrypt from "bcryptjs";
+import { getRedis } from "../config/redis.js";
+import logger from '../utils/logger.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  GET ALL ADDRESSES
@@ -150,6 +153,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
 // ── Send OTP to new email ─────────────────────────────────────────────────────
 export const sendEmailChangeOTP = asyncHandler(async (req, res) => {
+  const redis = getRedis();
   const { email } = req.body;
   if (!email) throw new ApiError(400, 'Email required');
 
@@ -170,7 +174,10 @@ export const sendEmailChangeOTP = asyncHandler(async (req, res) => {
 
 // ── Verify OTP and update email ───────────────────────────────────────────────
 export const verifyEmailChange = asyncHandler(async (req, res) => {
+  const redis = getRedis();
+
   const { otp } = req.body;
+
   const stored  = await redis.get(`email_change:${req.user.id}`);
   if (!stored) throw new ApiError(400, 'OTP expired or not requested');
 
@@ -189,6 +196,8 @@ export const verifyEmailChange = asyncHandler(async (req, res) => {
 
 // ── Send OTP to new phone ─────────────────────────────────────────────────────
 export const sendPhoneChangeOTP = asyncHandler(async (req, res) => {
+  const redis = getRedis();
+
   const { phone } = req.body;
   if (!phone) throw new ApiError(400, 'Phone required');
 
@@ -206,6 +215,8 @@ export const sendPhoneChangeOTP = asyncHandler(async (req, res) => {
 
 // ── Verify OTP and update phone ───────────────────────────────────────────────
 export const verifyPhoneChange = asyncHandler(async (req, res) => {
+  const redis = getRedis();
+
   const { otp } = req.body;
   const stored  = await redis.get(`phone_change:${req.user.id}`);
   if (!stored) throw new ApiError(400, 'OTP expired or not requested');
