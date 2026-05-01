@@ -32,7 +32,6 @@ import reviewRoutes from "./routes/v1/review.routes.js";
 import couponRoutes from "./routes/v1/coupon.routes.js";
 import notificationRoutes from "./routes/v1/notification.routes.js";
 import uploadRoutes from "./routes/v1/upload.routes.js";
-import internalRoutes from "./routes/v1/internal.route.js";
 import bannerRoutes from "./routes/v1/banner.routes.js";
 
 // Validate env on startup
@@ -141,7 +140,6 @@ app.use(`${V1}/reviews`, reviewRoutes);
 app.use(`${V1}/coupons`, couponRoutes);
 app.use(`${V1}/notifications`, notificationRoutes);
 app.use(`${V1}/upload`, uploadRoutes);
-app.use(`${V1}/internal`, internalRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use("*", (req, res) => {
