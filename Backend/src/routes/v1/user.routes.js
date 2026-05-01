@@ -26,6 +26,7 @@ router.post('/profile/email/verify-otp',  UserCtrl.verifyEmailChange);
 router.post('/profile/phone/send-otp',    UserCtrl.sendPhoneChangeOTP);
 router.post('/profile/phone/verify-otp',  UserCtrl.verifyPhoneChange);
 router.post('/profile/avatar', avatarUpload, UserCtrl.updateAvatar);
+router.delete('/profile/avatar', UserCtrl.deleteAvatar);
 
 
 // Addresses

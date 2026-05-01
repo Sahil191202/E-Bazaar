@@ -305,3 +305,15 @@ export const updateAvatar = asyncHandler(async (req, res) => {
  
   res.json(new ApiResponse(200, { user, avatar: result.secure_url }, 'Avatar updated'));
 });
+
+export const deleteAvatar = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user?.avatar) throw new ApiError(400, 'No avatar to delete');
+
+  // Cloudinary se delete karo
+  const publicId = user.avatar.split('/').slice(-1)[0].split('.')[0];
+  await cloudinary.uploader.destroy(`luxe/avatars/${publicId}`).catch(() => {});
+
+  await User.findByIdAndUpdate(req.user._id, { avatar: '' });
+  res.json(new ApiResponse(200, {}, 'Avatar removed'));
+});

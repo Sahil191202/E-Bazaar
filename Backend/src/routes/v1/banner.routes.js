@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import * as Admin from '../../controllers/admin.controller.js';
 import multer from 'multer';
 

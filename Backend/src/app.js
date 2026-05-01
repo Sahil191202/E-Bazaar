@@ -33,7 +33,7 @@ import couponRoutes from "./routes/v1/coupon.routes.js";
 import notificationRoutes from "./routes/v1/notification.routes.js";
 import uploadRoutes from "./routes/v1/upload.routes.js";
 import internalRoutes from "./routes/v1/internal.route.js";
-import bannerRoutes from './banner.routes.js';
+import bannerRoutes from "./routes/v1/banner.routes.js";
 
 // Validate env on startup
 validateEnv();
@@ -127,6 +127,7 @@ app.get("/health/ready", async (req, res) => {
 // ── API Routes ────────────────────────────────────────────────────────────────
 const V1 = "/api/v1";
 app.use(`${V1}/auth`, authRoutes);
+app.use(`${V1}/banners`, bannerRoutes);
 app.use(`${V1}/users`, userRoutes);
 app.use(`${V1}/vendors`, vendorRoutes);
 app.use(`${V1}/agents`, agentRoutes);
@@ -141,7 +142,6 @@ app.use(`${V1}/coupons`, couponRoutes);
 app.use(`${V1}/notifications`, notificationRoutes);
 app.use(`${V1}/upload`, uploadRoutes);
 app.use(`${V1}/internal`, internalRoutes);
-app.use(`${V1}/banners`, bannerRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use("*", (req, res) => {
